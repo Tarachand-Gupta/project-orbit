@@ -84,7 +84,10 @@ export const useGameStore = create<GameState>((set) => ({
   provider: loadProvider(),
   apiKeys: loadApiKeys(),
   solidObstacles: true,
-  realisticVehicles: true,
+  // Default OFF: the stable kinematic arcade controller (smooth accel, always upright, terrain-
+  // following, launches off cliffs) is the good default. The raycast path stays an opt-in for
+  // experimentation — it can bounce/sink on the headless trimesh and feels unstable.
+  realisticVehicles: false,
   devPanelOpen: false,
   debugWindowOpen: false,
   promptOpen: false,

@@ -117,26 +117,29 @@ export function spawnFromPrompt(prompt: string): SpawnResult {
 
     const provider = useGameStore.getState().provider;
 
-    // Local mode: spawn the deterministic object right away (drops gently from above).
+    // Offline-first (CLAUDE.md / Tech Doc §4.1): ALWAYS place the deterministic local object
+    // immediately so the user sees exactly one object the instant they hit Create. This is the fix
+    // for the "double spawn" — previously AI mode showed nothing for ~10s, so users hit Create
+    // again and got two overlapping objects. The model only ever *upgrades* fidelity in place.
+    placeAndAdd(spec, world);
+
     if (provider === "local") {
-      placeAndAdd(spec, world);
       return { ok: true, id, label: spec.label, source };
     }
 
-    // AI mode: DON'T show a placeholder. Show the spinner, wait for the model, then drop the
-    // real object in front of the player. If the model fails, fall back to the local object so
-    // something always appears. (Tech Doc §4.1 — model scales fidelity, never blocks the game.)
+    // AI mode: enrich asynchronously and swap the richer spec in place (same id + transform) via
+    // replaceSpec. Never adds a second object; on any failure the local object simply stays.
     useGameStore.getState().startGenerating(id, spec.label);
-    // Only place the result if this generation is still pending — if the world was cleared or
-    // reloaded while the model was working, drop it (prevents stale/duplicate objects appearing).
-    const stillWanted = () => id in useGameStore.getState().pendingGen;
+    // Guard against a cleared/removed world while the model worked (don't resurrect the object).
+    const stillWanted = () => id in useGameStore.getState().objects;
     void enrichWithLLM(trimmed, id, provider, spec.label)
       .then((enriched) => {
-        if (!stillWanted()) return;
-        placeAndAdd(enriched ? ensureRotors(groundSpec(enriched)) : spec, useGameStore.getState().world);
+        if (enriched && stillWanted()) {
+          useGameStore.getState().replaceSpec(id, ensureRotors(groundSpec(enriched)));
+        }
       })
       .catch(() => {
-        if (stillWanted()) placeAndAdd(spec, useGameStore.getState().world);
+        /* enrichWithLLM never throws (returns null) — local object already placed. */
       })
       .finally(() => useGameStore.getState().finishGenerating(id));
 

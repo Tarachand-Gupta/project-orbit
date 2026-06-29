@@ -93,8 +93,9 @@ export function VehicleBody({ data }: Props) {
     const steer = input ? (input.left ? 1 : 0) - (input.right ? 1 : 0) : 0;
     const speed = ctrl.currentVehicleSpeed();
     const overTop = Math.abs(speed) > tune.topSpeed;
-    // Scale engine force with the requested acceleration (relative to the baseline accel).
-    const engineForce = VEHICLE_TUNING.engineForce * (tune.accel / 22);
+    // Scale engine force modestly with the requested acceleration (clamped so it can't launch).
+    const accelFactor = Math.max(0.5, Math.min(1.3, tune.accel / 26));
+    const engineForce = VEHICLE_TUNING.engineForce * accelFactor;
     const engine = overTop ? 0 : throttle * engineForce * mass;
     const brake = !input || throttle === 0 ? VEHICLE_TUNING.brakeForce : 0;
     const maxSteer = VEHICLE_TUNING.maxSteer * (tune.turnRate / 2.0);

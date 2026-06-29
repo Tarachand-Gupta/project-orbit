@@ -69,11 +69,24 @@ test.describe("Project Orbit — walkable world", () => {
     await page.getByTestId("prompt-submit").click();
 
     await expect(page.getByTestId("prompt-hint")).toContainText(/Spawned/i, { timeout: 5000 });
+    // Exactly ONE object — a single Create must never produce a duplicate (regression: double-spawn).
     const count = await page.evaluate(() => window.game.list().length);
-    expect(count).toBeGreaterThanOrEqual(1);
+    expect(count, "one Create = exactly one object").toBe(1);
 
     await page.waitForTimeout(600);
     expect(errors, `console errors:\n${errors.join("\n")}`).toEqual([]);
+  });
+
+  test("a fast double-click on Create still spawns only one object", async ({ page }) => {
+    await boot(page);
+    await page.getByTestId("prompt-toggle").click();
+    await page.getByTestId("prompt-input").fill("create a monster truck");
+    const btn = page.getByTestId("prompt-submit");
+    await btn.click();
+    await btn.click(); // accidental second click of the same intent
+    await page.waitForTimeout(800);
+    const count = await page.evaluate(() => window.game.list().length);
+    expect(count, "double-click = still one object").toBe(1);
   });
 
   test("game API spawns, lists, configures and describes objects", async ({ page }) => {
@@ -263,6 +276,74 @@ test.describe("Project Orbit — walkable world", () => {
     // Sanity: it really was moving fast, and lowering the control really slowed it down.
     expect(speedFast, `peak fast speed=${speedFast.toFixed(1)} m/s`).toBeGreaterThan(20);
     expect(speedFast, `fast=${speedFast.toFixed(1)} m/s slow=${speedSlow.toFixed(1)} m/s`).toBeGreaterThan(speedSlow * 1.6);
+  });
+
+  test("a car drives stably: accelerates grounded + upright, steers, and reverses", async ({ page }) => {
+    await boot(page);
+    const id = await page.evaluate(() => window.game.spawn("create a supercar").id!);
+    await page.waitForTimeout(1500);
+    await page.evaluate((vid) => window.__orbitTest!.enterVehicle(vid), id);
+
+    // Accelerate forward (real key) and sample throughout: it must move under power, stay near the
+    // ground (NEVER launch into the air) and stay upright (NEVER flip onto its side/roof). The
+    // no-launch + upright checks are the heart of the bug report and are frame-rate independent;
+    // motion thresholds are kept modest because the headless render loop can run slowly.
+    const start = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
+    await page.keyboard.down("w");
+    let maxY = -Infinity, minUp = 1, peakSpeed = 0, firstSpeed = 0;
+    for (let i = 0; i < 34; i++) {
+      await page.waitForTimeout(100);
+      const s = await page.evaluate((vid) => ({
+        y: window.__orbitTest!.objectPos(vid)![1],
+        up: window.__orbitTest!.objectUpY(vid),
+        speed: window.__orbitTest!.vehicleSpeed(),
+      }), id);
+      if (i === 2) firstSpeed = s.speed;
+      maxY = Math.max(maxY, s.y); minUp = Math.min(minUp, s.up); peakSpeed = Math.max(peakSpeed, s.speed);
+    }
+    await page.keyboard.up("w");
+    const endPos = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
+    const moved = Math.hypot(endPos[0] - start[0], endPos[2] - start[2]);
+
+    expect(maxY, `max height ${maxY.toFixed(2)} (no launching)`).toBeLessThan(6); // never launches skyward
+    expect(minUp, `min uprightness ${minUp.toFixed(2)}`).toBeGreaterThan(0.5); // never flips
+    expect(peakSpeed, `peak speed ${peakSpeed.toFixed(1)}`).toBeGreaterThan(4); // moves under power
+    expect(peakSpeed, `accelerated from ${firstSpeed.toFixed(1)} to ${peakSpeed.toFixed(1)}`).toBeGreaterThan(firstSpeed + 1);
+    expect(moved, `moved ${moved.toFixed(1)}`).toBeGreaterThan(3);
+
+    // Reverse: holding S sends it backward.
+    const before = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
+    await page.keyboard.down("s");
+    await page.waitForTimeout(1500);
+    await page.keyboard.up("s");
+    const after = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
+    const reversed = Math.hypot(after[0] - before[0], after[2] - before[2]);
+    expect(reversed, `reversed ${reversed.toFixed(1)}`).toBeGreaterThan(2);
+  });
+
+  test("steering changes a driving car's heading", async ({ page }) => {
+    await boot(page);
+    const id = await page.evaluate(() => window.game.spawn("create a supercar").id!);
+    await page.waitForTimeout(1500);
+    await page.evaluate((vid) => window.__orbitTest!.enterVehicle(vid), id);
+
+    const headingOver = async (ms: number) => {
+      const a = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
+      await page.waitForTimeout(ms);
+      const b = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
+      return Math.atan2(b[0] - a[0], b[2] - a[2]);
+    };
+    await page.keyboard.down("w");
+    await page.waitForTimeout(1200); // build up speed so steering has authority
+    const h0 = await headingOver(400);
+    await page.keyboard.down("d"); // steer right
+    await page.waitForTimeout(2200);
+    const h1 = await headingOver(400);
+    await page.keyboard.up("w");
+    await page.keyboard.up("d");
+    let turned = Math.abs(h1 - h0);
+    if (turned > Math.PI) turned = 2 * Math.PI - turned;
+    expect(turned, `heading changed by ${(turned * 57.3).toFixed(0)}°`).toBeGreaterThan(0.15);
   });
 
   test("a helicopter flies, and its rotor-speed control gates lift", async ({ page }) => {

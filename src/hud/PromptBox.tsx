@@ -74,12 +74,20 @@ export function PromptBox() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  const lastSubmit = useRef<{ prompt: string; at: number }>({ prompt: "", at: 0 });
+
   const submit = () => {
     const prompt = value.trim();
     if (!prompt) return;
+    // Guard against an accidental double-fire (e.g. Enter + click, or a fast double-click)
+    // creating two objects from one intent.
+    const now = Date.now();
+    if (prompt === lastSubmit.current.prompt && now - lastSubmit.current.at < 700) return;
+    lastSubmit.current = { prompt, at: now };
+
     const res = spawnFromPrompt(prompt);
     if (res.ok && res.pending) {
-      setHint(`Generating “${res.label}”… it’ll drop in shortly`);
+      setHint(`Spawned “${res.label}” — enriching with AI…`);
       setValue("");
     } else if (res.ok) {
       setHint(`Spawned “${res.label}”`);

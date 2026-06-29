@@ -28,6 +28,8 @@ export interface OrbitTestHooks {
   objectSpeed: (id: string) => number;
   /** Live signed vertical velocity (linvel.y) of a spawned object — distinguishes climb from sink. */
   objectVelY: (id: string) => number;
+  /** Y component of a spawned object's local up-axis (1 = perfectly upright, <0 = flipped over). */
+  objectUpY: (id: string) => number;
   /** Relocate the player + face a heading (radians). */
   teleport: (x: number, z: number, yaw?: number) => void;
   /** Reset transient control state (held keys, queued events, current vehicle) so tests are isolated. */
@@ -68,6 +70,13 @@ export function installTestHooks(): void {
       return Math.hypot(v.x, v.y, v.z);
     },
     objectVelY: (id) => getBody(id)?.linvel().y ?? 0,
+    objectUpY: (id) => {
+      const body = getBody(id);
+      if (!body) return 1;
+      const r = body.rotation();
+      // Up-axis (0,1,0) rotated by the body quaternion → its world Y component.
+      return 1 - 2 * (r.x * r.x + r.z * r.z);
+    },
     teleport: (x, z, yaw) => {
       const ps = usePlayerStore.getState();
       if (typeof yaw === "number") ps.setCameraYaw(yaw);
