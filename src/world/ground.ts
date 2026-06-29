@@ -7,6 +7,7 @@
 
 import { createNoise2D } from "simplex-noise";
 import type { WorldConfig } from "@/config/world";
+import { lakeFor } from "@/config/world";
 
 /** Seeded PRNG (mulberry32) for deterministic terrain. */
 export function mulberry32(seed: number): () => number {
@@ -27,6 +28,10 @@ export interface GroundSampler {
   riverDistance: (x: number, z: number) => number;
   /** True if (x,z) is over the river channel. */
   isRiver: (x: number, z: number) => boolean;
+  /** True if (x,z) is over the lake. */
+  isLake: (x: number, z: number) => boolean;
+  /** True if (x,z) is over any water (river or lake). */
+  isWater: (x: number, z: number) => boolean;
   /** Biome color {r,g,b} for a surface point, by height & proximity to water. */
   colorAt: (x: number, z: number) => { r: number; g: number; b: number };
   config: WorldConfig;
@@ -42,6 +47,9 @@ export function createGroundSampler(config: WorldConfig): GroundSampler {
   const rng = mulberry32(config.seed);
   const noise = createNoise2D(rng);
   const { size, hillAmplitude, noiseScale, flatRadius, riverWidth } = config;
+  const lake = lakeFor(size);
+  /** Distance from the lake centre, normalised so 1 = the shoreline. */
+  const lakeT = (x: number, z: number) => Math.hypot(x - lake.x, z - lake.z) / lake.r;
 
   // Fewer octaves + lower base frequency → broad, rolling, walkable hills (not jagged spikes).
   const fbm = (x: number, z: number): number => {
@@ -90,10 +98,20 @@ export function createGroundSampler(config: WorldConfig): GroundSampler {
         h = Math.min(h, config.waterLevel - 0.9 + t * t * 1.1); // water channel
       }
     }
+
+    // Lake: a broad bowl carved below the water level, with a gentle shelving shore.
+    const lt = lakeT(x, z);
+    if (lt < 1.2) {
+      const bowl = config.waterLevel - 3.2 * (1 - smoothstep(lt / 1.0)); // deepest at centre
+      const blend = smoothstep(1.2 - lt); // ease the surrounding land down into the basin
+      h = h * (1 - blend) + Math.min(h, bowl) * blend;
+    }
     return h;
   };
 
   const isRiver = (x: number, z: number) => Math.abs(riverDistance(x, z)) < riverWidth * 0.92;
+  const isLake = (x: number, z: number) => lakeT(x, z) < 0.96;
+  const isWater = (x: number, z: number) => isRiver(x, z) || isLake(x, z);
 
   // Low-frequency "patch" noise (0..1) → large, smooth regions of slightly different green so the
   // grass has natural shade variation (not a flat paper fill, and not per-polygon grain).
@@ -111,6 +129,7 @@ export function createGroundSampler(config: WorldConfig): GroundSampler {
     const h = heightAt(x, z);
     const rd = Math.abs(riverDistance(x, z));
     if (rd < riverWidth + 1.5) return hex("#cdb486"); // sandy bank
+    if (lakeT(x, z) < 1.08) return hex("#d3bd92"); // sandy lake shore
     if (h < 1.5) {
       // Grass: blend across three greens by the patch noise for natural meadow variation.
       const p = patch(x, z);
@@ -125,7 +144,7 @@ export function createGroundSampler(config: WorldConfig): GroundSampler {
     return hex("#f2f4f6"); // snow caps
   };
 
-  return { heightAt, riverDistance, isRiver, colorAt, config };
+  return { heightAt, riverDistance, isRiver, isLake, isWater, colorAt, config };
 }
 
 function hex(s: string) {

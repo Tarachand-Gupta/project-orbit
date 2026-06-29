@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createGroundSampler, mulberry32, riverCenterZ } from "./ground";
 import { placeOnGround, pickSpawnInFront, slopeAt, isSpawnable } from "./placement";
-import { DEFAULT_WORLD } from "@/config/world";
+import { DEFAULT_WORLD, lakeFor } from "@/config/world";
 
 const sampler = createGroundSampler(DEFAULT_WORLD);
 
@@ -43,6 +43,17 @@ describe("createGroundSampler", () => {
     expect(onRiver).toBeLessThan(offRiver);
     expect(sampler.isRiver(x, cz)).toBe(true);
     expect(sampler.isRiver(x, cz + DEFAULT_WORLD.riverWidth + 8)).toBe(false);
+  });
+
+  it("carves a lake basin below the water level", () => {
+    const lake = lakeFor(DEFAULT_WORLD.size);
+    expect(sampler.isLake(lake.x, lake.z)).toBe(true);
+    expect(sampler.isLake(0, 0)).toBe(false);
+    expect(sampler.isWater(lake.x, lake.z)).toBe(true);
+    // The lake floor sits below the water surface so water actually pools there.
+    expect(sampler.heightAt(lake.x, lake.z)).toBeLessThan(DEFAULT_WORLD.waterLevel);
+    // Dry land outside the lake is above water.
+    expect(sampler.heightAt(lake.x + lake.r * 2, lake.z)).toBeGreaterThan(DEFAULT_WORLD.waterLevel);
   });
 
   it("returns color channels in [0,1]", () => {

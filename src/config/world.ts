@@ -30,17 +30,29 @@ export interface WorldConfig {
 }
 
 export const DEFAULT_WORLD: WorldConfig = {
-  size: 160,
-  segments: 128,
-  hillAmplitude: 9,
-  noiseScale: 0.7,
-  flatRadius: 34,
-  riverWidth: 8,
+  // A large open world: half-extent 520 (≈4× the old 160 → ~10× the explorable area), with taller
+  // hills and a winding river + a lake. Terrain resolution scaled up so hills stay detailed.
+  size: 520,
+  segments: 224,
+  hillAmplitude: 18,
+  noiseScale: 1.6,
+  flatRadius: 46,
+  riverWidth: 11,
   riverDepth: 2.6,
   waterLevel: -0.5,
   objectBaseScale: 1,
   seed: 7,
 };
+
+/** Lake centre + radius, derived from world size so it scales with the world (kept clear of spawn). */
+export function lakeFor(size: number): { x: number; z: number; r: number } {
+  return { x: -size * 0.4, z: -size * 0.32, r: size * 0.17 };
+}
+
+/** Dam location: spans the river valley at this X (a wall holding the river back). */
+export function damXFor(size: number): number {
+  return size * 0.12;
+}
 
 /** Glass-morphism design tokens (Tech Doc §8). Wired to CSS variables so the dev panel can tune them live. */
 export interface GlassConfig {

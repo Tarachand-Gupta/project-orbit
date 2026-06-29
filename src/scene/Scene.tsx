@@ -6,6 +6,8 @@ import { useGameStore } from "@/state/store";
 import { samplerFor } from "@/objects/spawn";
 import { Terrain } from "@/world/Terrain";
 import { River } from "@/world/River";
+import { Lake } from "@/world/Lake";
+import { Dam } from "@/world/Dam";
 import { Roads } from "@/world/Roads";
 import { Jungle } from "@/world/Jungle";
 import { Buildings } from "@/world/Buildings";
@@ -34,6 +36,8 @@ export function Scene() {
   const world = useGameStore((s) => s.world);
   const solidObstacles = useGameStore((s) => s.solidObstacles);
   const sampler = useMemo(() => samplerFor(world), [world]);
+  // Scale forest density with the world size, capped so the collider count stays manageable.
+  const treeCount = useMemo(() => Math.min(820, Math.round(360 * (world.size / 160))), [world.size]);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => document.body.setAttribute("data-scene-ready", "true"));
@@ -61,13 +65,15 @@ export function Scene() {
           <Terrain sampler={sampler} />
           <Roads sampler={sampler} />
           <Buildings sampler={sampler} />
+          <Dam sampler={sampler} />
           <Player sampler={sampler} />
           <ObjectsLayer sampler={sampler} />
-          <Jungle sampler={sampler} solid={solidObstacles} />
+          <Jungle sampler={sampler} solid={solidObstacles} count={treeCount} />
           <BurnController />
         </Physics>
         {/* Non-colliding scenery */}
         <River sampler={sampler} />
+        <Lake sampler={sampler} />
       </Suspense>
       <PostFX />
       <PerfProbe />

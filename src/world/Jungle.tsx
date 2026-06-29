@@ -91,7 +91,7 @@ function buildScatter(sampler: GroundSampler, count: number) {
     const x = (rng() * 2 - 1) * (size - 6);
     const z = (rng() * 2 - 1) * (size - 6);
     if (Math.hypot(x, z) < sampler.config.flatRadius + 4) continue;
-    if (sampler.isRiver(x, z)) continue;
+    if (sampler.isWater(x, z)) continue;
     const y = sampler.heightAt(x, z);
     if (y > sampler.config.hillAmplitude * 0.82) continue;
     const sc = 0.7 + rng() * 1.0;
@@ -113,7 +113,7 @@ function buildScatter(sampler: GroundSampler, count: number) {
     const x = (rng() * 2 - 1) * (size - 6);
     const z = (rng() * 2 - 1) * (size - 6);
     if (Math.hypot(x, z) < sampler.config.flatRadius + 4) continue;
-    if (sampler.isRiver(x, z)) continue;
+    if (sampler.isWater(x, z)) continue;
     const y = sampler.heightAt(x, z);
     const sc = 0.3 + rng() * 1.1;
     q.setFromEuler(new THREE.Euler(rng() * 0.6, rng() * Math.PI * 2, rng() * 0.6));
