@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
-import { RigidBody, CapsuleCollider, type RapierRigidBody } from "@react-three/rapier";
+import { RigidBody, CapsuleCollider, useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { Avatar } from "./Avatar";
 import { pollInput } from "./input";
 import { inputToMove, cameraOffset, forwardFromYaw, headingFromDir } from "./locomotion";
@@ -9,9 +9,10 @@ import { usePlayerStore } from "@/state/playerStore";
 import { useGameStore } from "@/state/store";
 import { getBody } from "@/objects/bodyRegistry";
 import { interactionFor, type ObjectSpec } from "@/objects/spec";
-import { specBoundingRadius } from "@/objects/geometry";
+import { specBoundingRadius, specBounds } from "@/objects/geometry";
 import { resolveDriveTuning, resolveFlyTuning } from "@/objects/tuning";
 import { vehicleVerticalStep } from "./vehicleAir";
+import { slideMove } from "./vehicleCollide";
 import { supportsRaycastPhysics } from "@/vehicles/raycastVehicle";
 import type { GroundSampler } from "@/world/ground";
 
@@ -70,6 +71,8 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
   const bodyRef = useRef<RapierRigidBody>(null);
   const riderRef = useRef<THREE.Group>(null);
   const { camera, gl } = useThree();
+  const { world, rapier } = useRapier();
+  const probeRef = useRef<InstanceType<typeof rapier.Ball> | null>(null);
   const worldLimit = sampler.config.size - 3;
 
   const yawRef = useRef(0);
@@ -287,8 +290,17 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     const fwd = forwardFromYaw(craftYawRef.current);
     const cur = craft.translation();
     const step = speedRef.current * dt;
-    const nx = clamp(cur.x + fwd[0] * step, -worldLimit, worldLimit);
-    const nz = clamp(cur.z + fwd[1] * step, -worldLimit, worldLimit);
+    let nx = clamp(cur.x + fwd[0] * step, -worldLimit, worldLimit);
+    let nz = clamp(cur.z + fwd[1] * step, -worldLimit, worldLimit);
+
+    // Solid collision: buildings, trees, rocks and other spawned objects block the vehicle. Cheap
+    // shape query against the real colliders (terrain excluded); slideMove scrapes along a wall
+    // instead of stopping dead, or stops if fully boxed in.
+    const r = vehicleRadius(spec);
+    const slid = slideMove(cur.x, cur.z, nx, nz, (x, z) => obstacleBlocked(x, z, r, craft));
+    nx = slid.x;
+    nz = slid.z;
+    if (slid.stopped) speedRef.current *= 0.2;
 
     // Boats float on the river; otherwise the surface is the terrain.
     const terrainY = sampler.heightAt(nx, nz);
@@ -358,12 +370,20 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     if (Math.abs(speedRef.current) < 0.02) speedRef.current = 0;
 
     const ct = craft.translation();
-    const minY = sampler.heightAt(ct.x, ct.z) + 1.2;
+    // The land is SOLID: the craft can never go below the terrain (+clearance). Check the terrain
+    // BOTH here and where we're heading this frame, so flying low into a hillside rides up and over
+    // it instead of passing through the mountain.
+    const CLEAR = 1.4;
+    const nextX = ct.x + fwd[0] * speedRef.current * dt;
+    const nextZ = ct.z + fwd[1] * speedRef.current * dt;
+    const floorY = Math.max(sampler.heightAt(ct.x, ct.z), sampler.heightAt(nextX, nextZ)) + CLEAR;
     let vy = lift * tune.climbRate;
     // Rotor stopped → no lift, the craft settles gently to the ground (can't take off).
     if (tune.climbRate <= 0.001 && lift > 0) vy = 0;
-    if (tune.rotor <= 0.001) vy = ct.y > minY + 0.05 ? -4 : 0;
-    if (ct.y <= minY && vy < 0) vy = 0;
+    if (tune.rotor <= 0.001) vy = ct.y > floorY + 0.05 ? -4 : 0;
+    // Never descend through the floor; if terrain ahead rises above us, climb to clear it.
+    const projectedY = ct.y + vy * dt;
+    if (projectedY < floorY) vy = (floorY - ct.y) / dt;
     craft.setLinvel({ x: fwd[0] * speedRef.current, y: vy, z: fwd[1] * speedRef.current }, true);
 
     // Bank into the turn; nose dips proportional to forward speed (cyclic) — the GTA look.
@@ -385,6 +405,40 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     camera.lookAt(camTarget);
   }
 
+  /**
+   * True if a solid obstacle (building, tree, rock, or any other spawned object) occupies the given
+   * spot. The vehicle being driven is excluded via Rapier's own body filter; the terrain is avoided
+   * by probing a ball ABOVE the local ground (and excluded again by its `terrain` tag as a backup),
+   * so the flat ground never registers as a wall. One reusable Ball query against the live colliders.
+   */
+  function obstacleBlocked(x: number, z: number, radius: number, craft: RapierRigidBody): boolean {
+    if (!world) return false;
+    const r = Math.min(radius, 0.85);
+    if (!probeRef.current) probeRef.current = new rapier.Ball(r);
+    probeRef.current.radius = r;
+    const y = sampler.heightAt(x, z) + 1.0; // sit the probe above the ground, around chassis height
+    const hit = world.intersectionWithShape(
+      { x, y, z },
+      { x: 0, y: 0, z: 0, w: 1 },
+      probeRef.current,
+      undefined,
+      undefined,
+      undefined,
+      craft, // exclude the car's own body — reliable self-filter
+      (collider) => {
+        const parent = collider.parent();
+        if (!parent) return true;
+        // Ignore the (disabled) player capsule the car is carrying. Handle comparison is reliable
+        // where userData round-tripping is not. The terrain is mainly avoided by probing above it,
+        // with the `terrain` tag as a backup for steep slopes.
+        if (bodyRef.current && parent.handle === bodyRef.current.handle) return false;
+        if ((parent.userData as { terrain?: boolean } | undefined)?.terrain) return false;
+        return true; // anything else solid blocks the vehicle
+      },
+    );
+    return hit !== null && hit !== undefined;
+  }
+
   return (
     <>
       <RigidBody
@@ -397,6 +451,7 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
         friction={0.2}
         linearDamping={0.05}
         canSleep={false}
+        userData={{ player: true }}
         ccd
       >
         <CapsuleCollider args={[CAPSULE_HALF, CAPSULE_RADIUS]} />
@@ -408,6 +463,13 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
       </group>
     </>
   );
+}
+
+/** Collision radius for a driven vehicle — roughly its half-width, clamped to a sane range. */
+function vehicleRadius(spec: ObjectSpec): number {
+  const b = specBounds(spec.parts);
+  const width = Math.min(b.max[0] - b.min[0], b.max[2] - b.min[2]);
+  return Math.max(0.6, Math.min(2.2, width * 0.45));
 }
 
 /** Kick (Z) / punch (X) the nearest object you're facing — applies an impulse scaled by its mass. */

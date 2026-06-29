@@ -16,7 +16,7 @@ export function Terrain({ sampler }: { sampler: GroundSampler }) {
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
-    <RigidBody type="fixed" colliders="trimesh" friction={1}>
+    <RigidBody type="fixed" colliders="trimesh" friction={1} userData={{ terrain: true }}>
       <mesh geometry={geometry} receiveShadow castShadow>
         <meshStandardMaterial vertexColors flatShading roughness={1} metalness={0} />
       </mesh>

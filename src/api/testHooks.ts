@@ -9,6 +9,7 @@ import { useGameStore } from "@/state/store";
 import { usePlayerStore } from "@/state/playerStore";
 import { getBody } from "@/objects/bodyRegistry";
 import { resetInput } from "@/player/input";
+import { samplerFor } from "@/objects/spawn";
 
 export interface OrbitTestHooks {
   pushLog: (message: string, phase?: LogPhase) => void;
@@ -32,6 +33,8 @@ export interface OrbitTestHooks {
   objectUpY: (id: string) => number;
   /** Relocate the player + face a heading (radians). */
   teleport: (x: number, z: number, yaw?: number) => void;
+  /** Terrain surface height at a world XZ (for verifying nothing sinks below the land). */
+  terrainHeightAt: (x: number, z: number) => number;
   /** Reset transient control state (held keys, queued events, current vehicle) so tests are isolated. */
   resetControls: () => void;
 }
@@ -77,6 +80,7 @@ export function installTestHooks(): void {
       // Up-axis (0,1,0) rotated by the body quaternion → its world Y component.
       return 1 - 2 * (r.x * r.x + r.z * r.z);
     },
+    terrainHeightAt: (x, z) => samplerFor(useGameStore.getState().world).heightAt(x, z),
     teleport: (x, z, yaw) => {
       const ps = usePlayerStore.getState();
       if (typeof yaw === "number") ps.setCameraYaw(yaw);

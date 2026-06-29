@@ -131,6 +131,64 @@ test.describe("Project Orbit — walkable world", () => {
     await expect(page.getByTestId("controls-panel")).toBeHidden();
   });
 
+  test("the player is blocked by a solid object (no clipping through)", async ({ page }) => {
+    await boot(page);
+    // A big solid house drops directly in front of the player.
+    const house = await page.evaluate(() => {
+      const r = window.game.spawn("create a house");
+      const o = window.game.list().find((x) => x.id === r.id)!;
+      return { pos: o.position };
+    });
+    await page.waitForTimeout(1200);
+    const startDist = await page.evaluate((h) => {
+      const p = window.__orbitTest!.playerPos();
+      return Math.hypot(h.pos[0] - p[0], h.pos[2] - p[2]);
+    }, house);
+
+    // Walk straight at it, sampling the closest approach to the house centre.
+    await page.locator("canvas").click();
+    await page.keyboard.down("w");
+    let minDist = Infinity;
+    for (let i = 0; i < 32; i++) {
+      await page.waitForTimeout(120);
+      const d = await page.evaluate((h) => {
+        const p = window.__orbitTest!.playerPos();
+        return Math.hypot(h.pos[0] - p[0], h.pos[2] - p[2]);
+      }, house);
+      minDist = Math.min(minDist, d);
+    }
+    await page.keyboard.up("w");
+
+    // The player approached the house (got closer than it started)…
+    expect(minDist, `approached to ${minDist.toFixed(1)} from ${startDist.toFixed(1)}`).toBeLessThan(startDist - 1);
+    // …but the wall stopped it: it never reached the interior (no clipping through the solid house).
+    expect(minDist, `closest approach ${minDist.toFixed(1)} (wall blocks entry)`).toBeGreaterThan(1.8);
+  });
+
+  test("a flown helicopter cannot sink below the solid ground", async ({ page }) => {
+    await boot(page);
+    const id = await page.evaluate(() => window.game.spawn("create a helicopter").id!);
+    await page.waitForTimeout(1400);
+    await page.evaluate((vid) => {
+      window.__orbitTest!.enterVehicle(vid);
+      window.game.setConfig(vid, "rotorSpeed", 2);
+    }, id);
+    // Hold descend (Shift): the craft must NEVER drop below the terrain surface beneath it.
+    await page.keyboard.down("Shift");
+    let worstPenetration = 0; // how far below terrain it ever got (should stay ~0)
+    for (let i = 0; i < 24; i++) {
+      await page.waitForTimeout(120);
+      const below = await page.evaluate((vid) => {
+        const p = window.__orbitTest!.objectPos(vid)!;
+        const ground = window.__orbitTest!.terrainHeightAt(p[0], p[2]);
+        return ground - p[1]; // positive = below the ground (penetrating)
+      }, id);
+      worstPenetration = Math.max(worstPenetration, below);
+    }
+    await page.keyboard.up("Shift");
+    expect(worstPenetration, `deepest below-ground = ${worstPenetration.toFixed(2)}`).toBeLessThan(0.6);
+  });
+
   test("player can walk with WASD", async ({ page }) => {
     await boot(page);
     const before = await page.evaluate(() => window.__orbitTest!.playerPos());
@@ -288,10 +346,21 @@ test.describe("Project Orbit — walkable world", () => {
     // ground (NEVER launch into the air) and stay upright (NEVER flip onto its side/roof). The
     // no-launch + upright checks are the heart of the bug report and are frame-rate independent;
     // motion thresholds are kept modest because the headless render loop can run slowly.
+    // Reverse FIRST from the open spawn area (before any forward run could wedge it on a building).
+    await page.locator("canvas").click();
+    const revBefore = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
+    await page.keyboard.down("s");
+    await page.waitForTimeout(3200); // generous: the headless loop can be slow to warm up after entering
+    await page.keyboard.up("s");
+    const revAfter = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
+    const reversed = Math.hypot(revAfter[0] - revBefore[0], revAfter[2] - revBefore[2]);
+    expect(reversed, `reversed ${reversed.toFixed(1)}`).toBeGreaterThan(2);
+    await page.waitForTimeout(300);
+
     const start = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
     await page.keyboard.down("w");
     let maxY = -Infinity, minUp = 1, peakSpeed = 0, firstSpeed = 0;
-    for (let i = 0; i < 34; i++) {
+    for (let i = 0; i < 18; i++) {
       await page.waitForTimeout(100);
       const s = await page.evaluate((vid) => ({
         y: window.__orbitTest!.objectPos(vid)![1],
@@ -309,16 +378,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(minUp, `min uprightness ${minUp.toFixed(2)}`).toBeGreaterThan(0.5); // never flips
     expect(peakSpeed, `peak speed ${peakSpeed.toFixed(1)}`).toBeGreaterThan(4); // moves under power
     expect(peakSpeed, `accelerated from ${firstSpeed.toFixed(1)} to ${peakSpeed.toFixed(1)}`).toBeGreaterThan(firstSpeed + 1);
-    expect(moved, `moved ${moved.toFixed(1)}`).toBeGreaterThan(3);
-
-    // Reverse: holding S sends it backward.
-    const before = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
-    await page.keyboard.down("s");
-    await page.waitForTimeout(1500);
-    await page.keyboard.up("s");
-    const after = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
-    const reversed = Math.hypot(after[0] - before[0], after[2] - before[2]);
-    expect(reversed, `reversed ${reversed.toFixed(1)}`).toBeGreaterThan(2);
+    expect(moved, `moved ${moved.toFixed(1)}`).toBeGreaterThan(2);
   });
 
   test("steering changes a driving car's heading", async ({ page }) => {

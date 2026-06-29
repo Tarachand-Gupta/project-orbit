@@ -107,10 +107,12 @@ function buildScatter(sampler: GroundSampler, count: number) {
     placed++;
   }
 
-  // Boulders scattered on land.
+  // Boulders scattered on land — kept out of the flat spawn/settlement area so they never block
+  // the spawn point or wedge a just-created vehicle.
   for (let i = 0; i < Math.floor(count * 0.5); i++) {
     const x = (rng() * 2 - 1) * (size - 6);
     const z = (rng() * 2 - 1) * (size - 6);
+    if (Math.hypot(x, z) < sampler.config.flatRadius + 4) continue;
     if (sampler.isRiver(x, z)) continue;
     const y = sampler.heightAt(x, z);
     const sc = 0.3 + rng() * 1.1;
