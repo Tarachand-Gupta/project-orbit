@@ -11,7 +11,10 @@ schema the LLM is asked to produce and the engine validates (`src/objects/spec.t
   "type": "vehicle",                 // semantic type — drives default interaction (see below)
   "label": "Red Sports Car",
   "parts": [                          // 1..60 low-poly primitive parts, composed in local space
-    { "primitive": "box", "size": [4,0.7,1.9], "position": [0,0.6,0], "rotation": [0,0,0], "material": "paint_red" }
+    { "primitive": "box", "size": [4,0.7,1.9], "position": [0,0.6,0], "rotation": [0,0,0], "material": "paint_red" },
+    // moving part: a helicopter main rotor that spins about Y, scaled live by the "rotorSpeed" control
+    { "primitive": "box", "size": [9,0.08,0.25], "position": [0,2.7,0], "material": "paint_black",
+      "spin": { "axis": "y", "speed": 16, "config": "rotorSpeed" } }
   ],
   "physics": { "mass": 1500, "friction": 0.7, "restitution": 0.1, "flammable": false,
                "fire": false, "fixed": false },
@@ -35,11 +38,36 @@ rubber, wood, bark, leaf, stone, marble, gold, sand, asphalt, fire, ember, brick
 `#rrggbb` hex. `fire`/`ember` glow. Tag `physics.flammable: true` to let fire ignite it; tag
 `physics.fire: true` to make it an igniter (e.g. a campfire).
 
+### Moving parts (`spin`)
+Any part may declare `spin: { axis: "x"|"y"|"z", speed: number /* rad/s */, config?: string }` to
+rotate continuously — helicopter/drone main rotors (axis `"y"`), tail rotors, wheels, turbines, fans.
+If `config` names a control key, that control's value scales the speed live (0 = stopped). Rotorcraft
+(helicopter/chopper/drone…) get a spinning main rotor **automatically** even if `spin` is omitted.
+
 ### Config controls (the tweak panel + API)
 - `slider`  → `{ min, max, step, value:number }`
 - `checkbox`→ `{ value:boolean }`  (LLM array form uses `value: 0|1`)
 - `stepper` → `{ min, max, step, value:number }`, shown with ×5/×10/×20 multipliers
 - `tab` groups controls into the bottom-right panel's tabs.
+
+#### Controls that change BEHAVIOUR live
+These reserved control **keys** are read every frame by the engine, so dragging them in the panel
+actually changes how the object moves (a slider's position within its own `min..max` maps onto a
+playable range, so any units work):
+
+| key | affects |
+| --- | ------- |
+| `topSpeed` (or `maxSpeed`/`speed`) | max drive/fly speed |
+| `acceleration` (or `accel`/`power`) | how fast it reaches top speed |
+| `handling` (or `turnRate`/`steering`) | steering / yaw turn rate |
+| `liftPower` (or `lift`/`climbRate`/`thrust`) | aircraft climb rate |
+| `rotorSpeed` | helicopter rotor speed **and** lift — at 0 the rotor stops and it can't take off |
+| `scale` | overall size multiplier |
+| `mass` (or `weight`) | body mass (kg) |
+| `bounciness` (or `restitution`) | how much it bounces (0..0.95) |
+
+Give vehicles `topSpeed` + `acceleration` + `handling`; aircraft `topSpeed` + `liftPower`
+(+ `rotorSpeed` for helicopters); bouncy props a `bounciness`; resizable props a `scale`.
 
 ## Interaction (controls) API
 
@@ -48,8 +76,8 @@ Declare `interaction.mode` so the player can control the object. **Enter/exit is
 
 | mode    | use for                                   | controls while controlling |
 | ------- | ----------------------------------------- | -------------------------- |
-| `drive` | cars, trucks, buses, bikes, karts, boats  | **W/S** throttle · **A/D** steer |
-| `fly`   | planes, jets, helicopters, drones, rockets| **W/S** throttle · **A/D** yaw · **Space** ascend · **Shift** descend |
+| `drive` | cars, trucks, buses, jeeps, buggies, bikes, karts, tanks, hovercraft, boats | **W/S** throttle · **A/D** steer (drives off cliffs/ramps and arcs under gravity) |
+| `fly`   | planes, jets, helicopters, drones, rockets| **W/S** forward cyclic (nose dips, accelerates) · **A/D** yaw (banks into turns) · **Space** ascend · **Shift** descend — GTA-style |
 | `ride`  | hoverboards, skateboards, mounts/animals  | same as drive |
 | `none`  | props, buildings, scenery (default)       | — |
 

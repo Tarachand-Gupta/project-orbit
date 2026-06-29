@@ -12,6 +12,7 @@ import { registerBody, unregisterBody } from "./bodyRegistry";
 import { conformToTerrain } from "@/world/conform";
 import { VehicleBody } from "./VehicleBody";
 import { supportsRaycastPhysics } from "@/vehicles/raycastVehicle";
+import { resolveBodyTuning } from "./tuning";
 import type { GroundSampler } from "@/world/ground";
 
 interface Props {
@@ -61,8 +62,13 @@ function StandardObject({ data, sampler }: Props) {
 
   const isFixed = spec.physics.fixed === true;
   const isVehicle = interactionFor(spec).mode !== "none";
-  const mass = Math.max(0.5, spec.physics.mass);
-  const restitution = Math.min(spec.physics.restitution ?? 0.1, 0.1);
+  // Live body tuning: a `scale` slider scales the mesh, a `mass` slider sets weight, a
+  // `bounciness` slider makes it actually bounce (otherwise restitution stays low to avoid jitter).
+  const bodyTune = resolveBodyTuning(spec);
+  const mass = Math.max(0.5, bodyTune.mass ?? spec.physics.mass);
+  const restitution =
+    bodyTune.restitution != null ? bodyTune.restitution : Math.min(spec.physics.restitution ?? 0.1, 0.1);
+  const scale = bodyTune.scale;
   const bodyType: RigidBodyTypeString = isVehicle ? "kinematicPosition" : isFixed ? "fixed" : "dynamic";
 
   useEffect(() => {
@@ -116,7 +122,7 @@ function StandardObject({ data, sampler }: Props) {
             selectObject(spec.id);
           }}
         >
-          <ObjectMesh spec={spec} burning={data.burning} />
+          <ObjectMesh spec={spec} burning={data.burning} scale={scale} />
           {selected && <SelectionHalo />}
         </group>
       </RigidBody>

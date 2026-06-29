@@ -10,6 +10,7 @@ import { ObjectErrorBoundary } from "./ObjectErrorBoundary";
 import { registerBody, unregisterBody } from "./bodyRegistry";
 import { peekInput } from "@/player/input";
 import { deriveVehicleSetup, VEHICLE_TUNING } from "@/vehicles/raycastVehicle";
+import { resolveDriveTuning } from "@/objects/tuning";
 
 interface Props {
   data: SpawnedObjectData;
@@ -85,17 +86,23 @@ export function VehicleBody({ data }: Props) {
     const driving = usePlayerStore.getState().drivingId === spec.id;
     const input = driving ? peekInput() : null;
 
+    // Live handling from the controls panel: Top speed / Acceleration / Handling sliders feed
+    // the real raycast engine force, speed cap and steering so the panel actually drives the car.
+    const tune = resolveDriveTuning(useGameStore.getState().objects[spec.id]?.spec ?? spec);
     const throttle = input ? (input.forward ? 1 : 0) - (input.back ? 1 : 0) : 0;
     const steer = input ? (input.left ? 1 : 0) - (input.right ? 1 : 0) : 0;
     const speed = ctrl.currentVehicleSpeed();
-    const overTop = Math.abs(speed) > VEHICLE_TUNING.topSpeed;
-    const engine = overTop ? 0 : throttle * VEHICLE_TUNING.engineForce * mass;
+    const overTop = Math.abs(speed) > tune.topSpeed;
+    // Scale engine force with the requested acceleration (relative to the baseline accel).
+    const engineForce = VEHICLE_TUNING.engineForce * (tune.accel / 22);
+    const engine = overTop ? 0 : throttle * engineForce * mass;
     const brake = !input || throttle === 0 ? VEHICLE_TUNING.brakeForce : 0;
+    const maxSteer = VEHICLE_TUNING.maxSteer * (tune.turnRate / 2.0);
 
     for (let i = 0; i < setup.wheels.length; i++) {
       const wheel = setup.wheels[i];
       ctrl.setWheelEngineForce(i, wheel.steered ? 0 : engine);
-      ctrl.setWheelSteering(i, wheel.steered ? steer * VEHICLE_TUNING.maxSteer : 0);
+      ctrl.setWheelSteering(i, wheel.steered ? steer * maxSteer : 0);
       ctrl.setWheelBrake(i, brake);
     }
     ctrl.updateVehicle(w.timestep);

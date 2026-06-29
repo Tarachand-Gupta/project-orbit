@@ -213,7 +213,7 @@ export function validateSpec(input: unknown): ValidationResult {
 }
 
 const FLY_TYPES = ["aircraft", "plane", "airplane", "jet", "helicopter", "chopper", "drone", "spaceship", "glider", "ufo"];
-const DRIVE_TYPES = ["vehicle", "car", "truck", "bus", "boat", "ship", "tank", "kart", "motorcycle", "motorbike", "bicycle", "cycle", "bike", "scooter"];
+const DRIVE_TYPES = ["vehicle", "car", "truck", "bus", "van", "jeep", "suv", "buggy", "boat", "ship", "tank", "kart", "atv", "quad", "hovercraft", "motorcycle", "motorbike", "bicycle", "cycle", "bike", "scooter"];
 const RIDE_TYPES = ["hoverboard", "skateboard", "surfboard", "snowboard", "longboard", "board", "segway", "horse", "mount", "animal", "dragon", "magic carpet", "carpet"];
 
 // type keyword → forced posture (these override an LLM's posture guess, which is often wrong)

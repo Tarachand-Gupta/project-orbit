@@ -26,6 +26,14 @@ export const LlmPartSchema = z.object({
   position: z.array(z.number()).length(3).optional().describe("local [x,y,z] offset; ground is y=0, +y up"),
   rotation: z.array(z.number()).length(3).optional().describe("Euler radians [x,y,z]"),
   material: z.string().describe("a palette name or #hex color"),
+  spin: z
+    .object({
+      axis: z.enum(["x", "y", "z"]),
+      speed: z.number().describe("radians/second; ~16 for a helicopter main rotor"),
+      config: z.string().optional().describe('control key whose value scales the speed, e.g. "rotorSpeed"'),
+    })
+    .optional()
+    .describe("continuous rotation for moving parts: helicopter rotors (axis y), wheels, fans, turbines"),
 });
 
 export const LlmControlSchema = z.object({
@@ -96,6 +104,7 @@ export function toObjectSpec(llm: LlmSpec, id: string, prompt: string): ObjectSp
       position: p.position as [number, number, number] | undefined,
       rotation: p.rotation as [number, number, number] | undefined,
       material: p.material,
+      spin: p.spin,
     })),
     physics: {
       mass: llm.physics.mass,

@@ -15,6 +15,8 @@ export interface PlayerState {
   cameraYaw: number;
   /** Whether the player is currently moving (transient — drives the walk animation). */
   moving: boolean;
+  /** Current speed (m/s) of the vehicle being driven/flown, 0 on foot (transient). */
+  speed: number;
   /** Id of a drivable vehicle within interaction range, or null. */
   nearbyVehicleId: string | null;
   /** Id of the vehicle currently being driven, or null when on foot. */
@@ -25,6 +27,7 @@ export interface PlayerState {
   setPosition: (p: [number, number, number]) => void;
   setCameraYaw: (y: number) => void;
   setMoving: (m: boolean) => void;
+  setSpeed: (s: number) => void;
   setNearby: (id: string | null) => void;
   enterVehicle: (id: string) => void;
   exitVehicle: (at: [number, number, number]) => void;
@@ -37,6 +40,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   position: [0, 2, 0],
   cameraYaw: 0,
   moving: false,
+  speed: 0,
   nearbyVehicleId: null,
   drivingId: null,
   teleport: null,
@@ -49,6 +53,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
   setMoving: (m) => {
     get().moving = m;
+  },
+  setSpeed: (s) => {
+    get().speed = s;
   },
   setNearby: (id) => set((s) => (s.nearbyVehicleId === id ? s : { nearbyVehicleId: id })),
   enterVehicle: (id) => set({ drivingId: id, nearbyVehicleId: null }),

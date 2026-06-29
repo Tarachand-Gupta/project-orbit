@@ -80,6 +80,22 @@ describe("generateSpec", () => {
     expect(generateSpec("create an off-road bike", "id").matched).toBe("motorcycle");
     expect(generateSpec("create a fighter jet", "id").matched).toBe("airplane");
   });
+
+  it("recognises a broad range of ground vehicles as drivable", () => {
+    for (const word of ["truck", "jeep", "buggy", "dune buggy", "hovercraft", "go-kart", "van", "tank", "taxi"]) {
+      const spec = generateSpec(`create a ${word}`, "id").spec;
+      expect(interactionFor(spec).mode, `${word} should be drivable`).toBe("drive");
+    }
+  });
+
+  it("gives vehicles live performance controls (topSpeed/acceleration/handling)", () => {
+    const car = generateSpec("create a supercar", "id").spec;
+    expect(car.config.topSpeed).toBeTruthy();
+    expect(car.config.acceleration).toBeTruthy();
+    expect(car.config.handling).toBeTruthy();
+    const heli = generateSpec("create a helicopter", "id").spec;
+    expect(heli.config.rotorSpeed && heli.config.liftPower).toBeTruthy();
+  });
 });
 
 describe("interactionFor", () => {

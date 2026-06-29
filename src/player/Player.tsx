@@ -10,6 +10,8 @@ import { useGameStore } from "@/state/store";
 import { getBody } from "@/objects/bodyRegistry";
 import { interactionFor, type ObjectSpec } from "@/objects/spec";
 import { specBoundingRadius } from "@/objects/geometry";
+import { resolveDriveTuning, resolveFlyTuning } from "@/objects/tuning";
+import { vehicleVerticalStep } from "./vehicleAir";
 import { supportsRaycastPhysics } from "@/vehicles/raycastVehicle";
 import type { GroundSampler } from "@/world/ground";
 
@@ -27,12 +29,7 @@ const DRIVE_CAM_DISTANCE = 13;
 const DRIVE_CAM_HEIGHT = 6.5;
 const FLY_CAM_DISTANCE = 18;
 const FLY_CAM_HEIGHT = 8;
-const VEHICLE_SPEED = 26;
-const VEHICLE_ACCEL = 20; // units/s² — gradual acceleration (gives the car momentum)
 const VEHICLE_DECEL = 13; // coast-down when the throttle is released (inertia)
-const STEER_RATE = 2.0;
-const FLY_SPEED = 34;
-const CLIMB_RATE = 14;
 const GROUND_CLEARANCE = 0.12;
 
 // Rapier RigidBodyType numeric constants.
@@ -160,7 +157,7 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
       }
       const interaction = interactionFor(obj.spec);
       if (interaction.mode === "fly") {
-        flyCraft(craft, input, dt);
+        flyCraft(craft, obj.spec, input, dt);
       } else if (isRealisticGround(obj.spec)) {
         // VehicleBody owns the physics — just track the chassis heading and chase it.
         const cr = craft.rotation();
@@ -170,7 +167,7 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
       } else {
         const t = obj.spec.type.toLowerCase();
         const floatY = t.includes("boat") || t.includes("ship") ? sampler.config.waterLevel : null;
-        driveCraft(craft, input, dt, floatY);
+        driveCraft(craft, obj.spec, input, dt, floatY);
       }
 
       // Seat/stand the rider on the vehicle, matching its orientation (tilts with the slope).
@@ -242,6 +239,7 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     }
 
     store.setMoving(moving);
+    store.setSpeed(0);
     if (moving) headingRef.current = headingFromDir(mx, mz);
     if (riderRef.current) {
       riderRef.current.visible = true;
@@ -271,18 +269,20 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
    * is **conformed to the terrain slope** (oriented to the surface normal) so it sits ON hills
    * instead of sinking through them, and never gets stuck (kinematic terrain-follow).
    */
-  function driveCraft(craft: RapierRigidBody, input: ReturnType<typeof pollInput>, dt: number, floatY: number | null) {
+  function driveCraft(craft: RapierRigidBody, spec: ObjectSpec, input: ReturnType<typeof pollInput>, dt: number, floatY: number | null) {
+    // Live handling from the controls panel (Top speed / Acceleration / Handling sliders).
+    const tune = resolveDriveTuning(spec);
     const throttle = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
     const steer = (input.right ? 1 : 0) - (input.left ? 1 : 0);
 
     // Acceleration + inertia: ease the speed toward the throttle target; coast down when released.
-    const targetSpeed = throttle * VEHICLE_SPEED;
-    const rate = (throttle !== 0 ? VEHICLE_ACCEL : VEHICLE_DECEL) * dt;
+    const targetSpeed = throttle * tune.topSpeed;
+    const rate = (throttle !== 0 ? tune.accel : VEHICLE_DECEL) * dt;
     speedRef.current += clamp(targetSpeed - speedRef.current, -rate, rate);
     if (Math.abs(speedRef.current) < 0.03) speedRef.current = 0;
 
     // Steering scales with speed (and inverts in reverse), like a real car.
-    craftYawRef.current -= steer * STEER_RATE * dt * (speedRef.current / VEHICLE_SPEED);
+    craftYawRef.current -= steer * tune.turnRate * dt * (speedRef.current / tune.topSpeed);
 
     const fwd = forwardFromYaw(craftYawRef.current);
     const cur = craft.translation();
@@ -295,32 +295,15 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     const onWater = floatY !== null && terrainY < floatY;
     const surfaceY = (onWater ? floatY : terrainY) + GROUND_CLEARANCE;
 
-    // ---- Arcade airborne physics: launch off cliffs/ramps, arc under gravity, land. ----
-    const GRAV = 32;
-    let ny: number;
-    let pitch = 0;
-    if (airborne.current) {
-      vyRef.current -= GRAV * dt;
-      ny = cur.y + vyRef.current * dt;
-      if (ny <= surfaceY) {
-        ny = surfaceY; // landed
-        airborne.current = false;
-        vyRef.current = 0;
-      } else {
-        pitch = clamp(-vyRef.current / Math.max(8, Math.abs(speedRef.current) + 6), -0.5, 0.5); // nose follows arc
-      }
-    } else {
-      // On the ground: follow the surface, UNLESS it drops away faster than we'd fall → take off.
-      const fallThisFrame = 0.5 * GRAV * dt * dt + 0.25;
-      if (!onWater && cur.y - surfaceY > fallThisFrame && Math.abs(speedRef.current) > 4) {
-        airborne.current = true;
-        // Carry any upward momentum from a ramp (climb rate over the last frame).
-        vyRef.current = clamp((cur.y - prevYRef.current) / dt, 0, 20);
-        ny = cur.y + vyRef.current * dt;
-      } else {
-        ny = surfaceY;
-      }
-    }
+    // ---- Arcade airborne physics: launch off cliffs/ramps, arc under gravity, land (pure step). ----
+    const air = vehicleVerticalStep(
+      cur.y, surfaceY, prevYRef.current, speedRef.current,
+      { airborne: airborne.current, vy: vyRef.current }, dt, 32, onWater,
+    );
+    airborne.current = air.airborne;
+    vyRef.current = air.vy;
+    const ny = air.y;
+    const pitch = air.pitch;
     craft.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
     prevYRef.current = ny;
 
@@ -344,29 +327,54 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     }
     craft.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
 
-    usePlayerStore.getState().setPosition([nx, ny, nz]);
+    const ps = usePlayerStore.getState();
+    ps.setPosition([nx, ny, nz]);
+    ps.setSpeed(Math.abs(speedRef.current));
     cameraChase({ x: nx, y: ny, z: nz }, craftYawRef.current, DRIVE_CAM_DISTANCE, DRIVE_CAM_HEIGHT, 1.5);
   }
 
-  /** Aircraft: throttle forward, A/D yaw, Space ascend, Shift descend (kinematic velocity). */
-  function flyCraft(craft: RapierRigidBody, input: ReturnType<typeof pollInput>, dt: number) {
+  /**
+   * Aircraft (GTA-style arcade flight, kinematic velocity):
+   *   W/S  → forward cyclic (nose dips and the craft accelerates forward / back), with momentum
+   *   A/D  → yaw turn (banks into the turn)
+   *   Space→ collective up (ascend), Shift → collective down (descend)
+   * A helicopter needs its rotor spun up to climb: with the Rotor-speed slider at 0 it sinks and
+   * can't take off (resolveFlyTuning gates climb on the rotor). Speed/climb/turn all come live
+   * from the controls panel.
+   */
+  function flyCraft(craft: RapierRigidBody, spec: ObjectSpec, input: ReturnType<typeof pollInput>, dt: number) {
+    const tune = resolveFlyTuning(spec);
     const throttle = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
     const steer = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     const lift = (input.jump ? 1 : 0) - (input.run ? 1 : 0);
-    craftYawRef.current -= steer * STEER_RATE * 0.8 * dt;
+
+    craftYawRef.current -= steer * tune.turnRate * dt;
     const fwd = forwardFromYaw(craftYawRef.current);
-    const target = throttle * FLY_SPEED;
+
+    // Forward speed has momentum (eases in/out) so flight feels weighty, not on/off.
+    const targetSpeed = throttle * tune.topSpeed;
+    const accel = (throttle !== 0 ? tune.topSpeed * 1.1 : tune.topSpeed * 0.7) * dt;
+    speedRef.current += clamp(targetSpeed - speedRef.current, -accel, accel);
+    if (Math.abs(speedRef.current) < 0.02) speedRef.current = 0;
+
     const ct = craft.translation();
     const minY = sampler.heightAt(ct.x, ct.z) + 1.2;
-    let vy = lift * CLIMB_RATE;
+    let vy = lift * tune.climbRate;
+    // Rotor stopped → no lift, the craft settles gently to the ground (can't take off).
+    if (tune.climbRate <= 0.001 && lift > 0) vy = 0;
+    if (tune.rotor <= 0.001) vy = ct.y > minY + 0.05 ? -4 : 0;
     if (ct.y <= minY && vy < 0) vy = 0;
-    craft.setLinvel({ x: fwd[0] * target, y: vy, z: fwd[1] * target }, true);
-    const bank = -steer * 0.4;
-    const pitch = -throttle * 0.12;
+    craft.setLinvel({ x: fwd[0] * speedRef.current, y: vy, z: fwd[1] * speedRef.current }, true);
+
+    // Bank into the turn; nose dips proportional to forward speed (cyclic) — the GTA look.
+    const bank = -steer * 0.45;
+    const pitch = -(speedRef.current / Math.max(1, tune.topSpeed)) * 0.28;
     q.setFromEuler(new THREE.Euler(pitch, craftYawRef.current, bank, "YXZ"));
     craft.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
     craft.setAngvel({ x: 0, y: 0, z: 0 }, true);
-    usePlayerStore.getState().setPosition([ct.x, ct.y, ct.z]);
+    const ps = usePlayerStore.getState();
+    ps.setPosition([ct.x, ct.y, ct.z]);
+    ps.setSpeed(Math.abs(speedRef.current));
     cameraChase(ct, craftYawRef.current, FLY_CAM_DISTANCE, FLY_CAM_HEIGHT, 2);
   }
 

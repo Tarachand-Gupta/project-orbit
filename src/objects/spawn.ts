@@ -14,6 +14,7 @@ import { forwardFromYaw } from "@/player/locomotion";
 import { specBoundingRadius } from "./geometry";
 import { getBody } from "./bodyRegistry";
 import { groundSpec } from "./normalize";
+import { ensureRotors } from "./rotors";
 import { useGameStore, type SpawnedObject } from "@/state/store";
 import { usePlayerStore } from "@/state/playerStore";
 import { logError } from "@/state/debugStore";
@@ -98,8 +99,9 @@ export function spawnFromPrompt(prompt: string): SpawnResult {
   try {
     const generated = generateSpec(trimmed, id);
     const source = generated.source;
-    // Normalize so the object's lowest point is at local y=0 → it rests on the ground (no hover).
-    const spec = groundSpec(generated.spec);
+    // Normalize so the object's lowest point is at local y=0 → it rests on the ground (no hover),
+    // and guarantee rotorcraft have spinning blades regardless of what the generator produced.
+    const spec = ensureRotors(groundSpec(generated.spec));
 
     const validation = validateSpec(spec);
     if (!validation.ok) {
@@ -131,7 +133,7 @@ export function spawnFromPrompt(prompt: string): SpawnResult {
     void enrichWithLLM(trimmed, id, provider, spec.label)
       .then((enriched) => {
         if (!stillWanted()) return;
-        placeAndAdd(enriched ? groundSpec(enriched) : spec, useGameStore.getState().world);
+        placeAndAdd(enriched ? ensureRotors(groundSpec(enriched)) : spec, useGameStore.getState().world);
       })
       .catch(() => {
         if (stillWanted()) placeAndAdd(spec, useGameStore.getState().world);

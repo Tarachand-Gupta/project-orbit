@@ -85,6 +85,8 @@ const supercar: Template = () => ({
   physics: { mass: 1400, friction: 0.8, restitution: 0.1, flammable: false },
   config: {
     topSpeed: slider(260, 0, 400, 5, "Performance", "Top speed (km/h)"),
+    acceleration: slider(6, 1, 10, 0.5, "Performance", "Acceleration"),
+    handling: slider(6, 1, 10, 0.5, "Performance", "Handling"),
     headlights: checkbox(true, "Lights"),
     spoiler: checkbox(true, "Style", "Rear spoiler"),
     wheelCount: stepper(4, 3, 8, 1, "Chassis", "Wheel count"),
@@ -251,6 +253,8 @@ const motorcycle: Template = () => ({
   physics: { mass: 250, friction: 0.8, restitution: 0.05, flammable: true },
   config: {
     topSpeed: slider(180, 0, 300, 5, "Performance", "Top speed (km/h)"),
+    acceleration: slider(7, 1, 10, 0.5, "Performance", "Acceleration"),
+    handling: slider(7, 1, 10, 0.5, "Performance", "Handling"),
     suspension: slider(1, 0.2, 2, 0.1, "Chassis", "Suspension"),
     offRoad: checkbox(true, "Chassis", "Off-road tyres"),
   },
@@ -357,6 +361,8 @@ const helicopter: Template = () => ({
   config: {
     rotorSpeed: slider(1, 0, 3, 0.1, "Flight", "Rotor speed"),
     topSpeed: slider(55, 10, 150, 5, "Flight", "Top speed"),
+    liftPower: slider(1.2, 0.3, 2, 0.1, "Flight", "Lift power"),
+    handling: slider(6, 1, 10, 0.5, "Flight", "Handling"),
   },
   interaction: { mode: "fly", verb: "fly", seatHeight: 1.0, posture: "sit" },
 });
@@ -393,7 +399,7 @@ const crate: Template = () => ({
 // keyword → template, checked in order (more specific first)
 const TEMPLATES: Array<{ keys: string[]; name: string; build: Template }> = [
   { keys: ["motorcycle", "motorbike", "superbike", "super bike", "sportbike", "sport bike", "off-road bike", "offroad bike", "dirt bike", "dirtbike", "bicycle", "pushbike", "mountain bike", "bmx", "cycle", "bike", "scooter", "moped"], name: "motorcycle", build: motorcycle },
-  { keys: ["supercar", "sports car", "race car", "car", "vehicle", "ferrari", "lamborghini"], name: "supercar", build: supercar },
+  { keys: ["supercar", "sports car", "race car", "racing car", "car", "vehicle", "ferrari", "lamborghini", "truck", "pickup", "pick-up", "bus", "van", "jeep", "suv", "buggy", "dune buggy", "go-kart", "go kart", "kart", "tank", "hovercraft", "hover car", "atv", "quad bike", "quad", "taxi", "cab", "police car", "cop car", "ambulance", "convertible", "sedan", "coupe", "roadster"], name: "supercar", build: supercar },
   { keys: ["taj mahal", "taj", "palace", "temple", "monument", "mahal"], name: "tajMahal", build: tajMahal },
   { keys: ["helicopter", "chopper", "heli"], name: "helicopter", build: helicopter },
   { keys: ["airplane", "aeroplane", "plane", "jet", "aircraft", "fighter jet"], name: "airplane", build: airplane },

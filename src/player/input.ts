@@ -122,6 +122,18 @@ export function installInput(): () => void {
 }
 
 /**
+ * Reset all input to neutral — clears held keys, queued edge events, and mouse deltas. Used by the
+ * e2e harness between tests so synthetic key events from one test can't leak into the next.
+ */
+export function resetInput(): void {
+  state.forward = state.back = state.left = state.right = false;
+  state.jump = state.run = false;
+  state.interactPressed = state.kickPressed = state.punchPressed = false;
+  state.mouseDX = state.mouseDY = 0;
+  interactQueued = kickQueued = punchQueued = false;
+}
+
+/**
  * Read the continuous movement state WITHOUT consuming edge-triggered events (interact/kick/punch)
  * or the mouse deltas — so a self-driving vehicle can read throttle/steer while the Player keeps
  * ownership of exit/kick/look. Edge fields are reported false here.

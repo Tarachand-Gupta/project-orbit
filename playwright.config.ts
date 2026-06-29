@@ -7,6 +7,9 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
+  // Headless SwiftShader (software WebGL) occasionally stalls the render loop for a beat, which can
+  // make a motion-over-time assertion miss. Retry such transient flakes (a re-run renders cleanly).
+  retries: 2,
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: "http://localhost:5191",

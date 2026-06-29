@@ -31,8 +31,10 @@ async function boot(page: Page) {
   await page.goto("/");
   await page.waitForSelector("canvas", { timeout: 30_000 });
   await page.waitForFunction(() => document.body.getAttribute("data-scene-ready") === "true", { timeout: 30_000 });
-  // Deterministic, fast & free: local generator + fixed daytime.
+  // Deterministic, fast & free: local generator + fixed daytime. Reset transient control state so
+  // synthetic key events / driving state from a previous test can't leak into this one.
   await page.evaluate(() => {
+    window.__orbitTest?.resetControls();
     window.game.setProvider("local");
     window.game.setTimeOfDay(0.45);
     window.game.clear();
@@ -220,5 +222,110 @@ test.describe("Project Orbit — walkable world", () => {
     await page.waitForFunction(() => document.body.getAttribute("data-scene-ready") === "true", { timeout: 30_000 });
     const count = await page.evaluate(() => window.game.list().length);
     expect(count).toBeGreaterThanOrEqual(2);
+  });
+
+  test("the controls panel actually changes how a vehicle drives (top speed)", async ({ page }) => {
+    await boot(page);
+    const id = await page.evaluate(() => window.game.spawn("create a motorbike").id!);
+    await page.waitForTimeout(1200);
+
+    // Drive at each top-speed setting from rest and read the controller's actual commanded speed
+    // (independent of the low headless frame rate). Same bike, same throttle — only the slider
+    // changed. We exit (E) and re-enter between phases so each run accelerates from a standstill.
+    const { speedFast, speedSlow } = await page.evaluate(async (vid) => {
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const peakSpeed = async (ms: number) => {
+        let peak = 0;
+        const end = Date.now() + ms;
+        while (Date.now() < end) {
+          peak = Math.max(peak, window.__orbitTest!.vehicleSpeed());
+          await wait(50);
+        }
+        return peak;
+      };
+      const driveAt = async (topSpeed: number) => {
+        window.game.setConfig(vid, "topSpeed", topSpeed);
+        window.__orbitTest!.enterVehicle(vid);
+        window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+        await wait(2200); // accelerate from rest toward the (new) top speed
+        const peak = await peakSpeed(800);
+        window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyW" }));
+        window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyE" })); // exit
+        window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyE" }));
+        await wait(400);
+        return peak;
+      };
+      const speedFast = await driveAt(300);
+      const speedSlow = await driveAt(30);
+      return { speedFast, speedSlow };
+    }, id);
+
+    // Sanity: it really was moving fast, and lowering the control really slowed it down.
+    expect(speedFast, `peak fast speed=${speedFast.toFixed(1)} m/s`).toBeGreaterThan(20);
+    expect(speedFast, `fast=${speedFast.toFixed(1)} m/s slow=${speedSlow.toFixed(1)} m/s`).toBeGreaterThan(speedSlow * 1.6);
+  });
+
+  test("a helicopter flies, and its rotor-speed control gates lift", async ({ page }) => {
+    await boot(page);
+    const id = await page.evaluate(() => window.game.spawn("create a helicopter").id!);
+    await page.waitForTimeout(1400);
+    const mode = await page.evaluate((vid) => (window.game.describe(vid) as { interaction?: { mode?: string } } | null)?.interaction?.mode, id);
+    expect(mode).toBe("fly");
+
+    // Hold ascend (real key) and measure the craft's commanded vertical velocity (signed linvel.y,
+    // independent of the headless frame rate). A spinning rotor produces real lift; stopping the
+    // rotor mid-air kills the lift (it stops climbing / sinks).
+    const peakClimb = (vid: string, ms: number) =>
+      page.evaluate(
+        async ([id, dur]) => {
+          let m = -Infinity;
+          const end = Date.now() + (dur as number);
+          while (Date.now() < end) {
+            m = Math.max(m, window.__orbitTest!.objectVelY(id as string));
+            await new Promise((r) => setTimeout(r, 50));
+          }
+          return m;
+        },
+        [vid, ms] as const,
+      );
+
+    await page.evaluate((vid) => {
+      window.__orbitTest!.enterVehicle(vid);
+      window.game.setConfig(vid, "rotorSpeed", 2); // rotor spun up
+    }, id);
+    await page.keyboard.down("Space"); // ascend
+    await page.waitForTimeout(500);
+    const liftOn = await peakClimb(id, 700);
+
+    await page.evaluate((vid) => window.game.setConfig(vid, "rotorSpeed", 0), id); // stop the rotor
+    await page.waitForTimeout(400);
+    const liftOff = await peakClimb(id, 700);
+    await page.keyboard.up("Space");
+
+    expect(liftOn, `climb rate, rotor spinning = ${liftOn.toFixed(2)}`).toBeGreaterThan(6);
+    expect(liftOff, `climb rate, rotor stopped = ${liftOff.toFixed(2)}`).toBeLessThan(2);
+  });
+
+  test("a broadly-named vehicle (buggy) is drivable end to end", async ({ page }) => {
+    await boot(page);
+    const id = await page.evaluate(() => window.game.spawn("create a dune buggy").id!);
+    await page.waitForTimeout(1400);
+    const mode = await page.evaluate((vid) => (window.game.describe(vid) as { interaction?: { mode?: string } } | null)?.interaction?.mode, id);
+    expect(mode).toBe("drive");
+
+    // Drive forward and measure the peak speed the chassis actually reaches (frame-rate independent).
+    const peakSpeed = await page.evaluate(async (vid) => {
+      window.__orbitTest!.enterVehicle(vid);
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+      let m = 0;
+      const end = Date.now() + 3000;
+      while (Date.now() < end) {
+        m = Math.max(m, window.__orbitTest!.objectSpeed(vid));
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyW" }));
+      return m;
+    }, id);
+    expect(peakSpeed, `buggy reached ${peakSpeed.toFixed(2)} m/s`).toBeGreaterThan(2);
   });
 });

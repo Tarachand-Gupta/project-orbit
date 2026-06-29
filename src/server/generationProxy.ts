@@ -53,6 +53,11 @@ Modeling rules — THINK CAREFULLY about real-world structure & physics before e
   · Legs/supports come in matched pairs at the base. Symmetry where appropriate (wheels, wings, legs).
 - Use color/material variation for visual interest.
 
+Moving parts (spin) — make machines feel alive:
+- Give a part a "spin" {axis, speed, config} to rotate it continuously. Helicopter/drone MAIN rotor
+  blades spin about axis "y" (speed ~16); tail rotors about "x"; wheels/turbines/fans as appropriate.
+- Set spin.config to a control key (e.g. "rotorSpeed") so the matching slider scales the speed live.
+
 Physics:
 - Realistic mass (kg), friction & restitution 0..1. Keep restitution low (≤0.2) so it doesn't bounce.
 - Large static structures (buildings, towers, bridges, tracks): physics.fixed = true.
@@ -75,7 +80,12 @@ Interaction (IMPORTANT — controls API):
 - The player enters/exits with E (handled by the engine); just declare mode, verb, posture, seatHeight.
 - The object is placed flat ON the ground automatically — model it upright, resting at y≈0.
 
-config is an ARRAY of controls; for a checkbox use value 0 or 1. Provide 3–8 useful, real controls grouped into tabs (e.g. Performance, Body, Lights).`;
+config is an ARRAY of controls; for a checkbox use value 0 or 1. Provide 3–8 useful, real controls grouped into tabs (e.g. Performance, Body, Lights).
+Controls that DRIVE BEHAVIOUR live (use these exact keys so the panel actually changes the object):
+- "topSpeed" → max drive/fly speed.  "acceleration" → how fast it speeds up.  "handling" → turn/steer rate.
+- "liftPower" → helicopter/plane climb rate.  "rotorSpeed" → rotor blade speed + lift (also a spin.config target).
+- "scale" → overall size multiplier.  "mass" → weight (kg).  "bounciness" → restitution (0..1).
+Give vehicles a topSpeed + acceleration + handling control; aircraft a topSpeed + liftPower (+ rotorSpeed for helicopters).`;
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {

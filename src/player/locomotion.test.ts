@@ -68,6 +68,8 @@ describe("mapKey", () => {
     expect(mapKey("Space")).toBe("jump");
     expect(mapKey("ShiftLeft")).toBe("run");
     expect(mapKey("KeyE")).toBe("interact");
-    expect(mapKey("KeyZ")).toBe(null);
+    expect(mapKey("KeyZ")).toBe("kick");
+    expect(mapKey("KeyX")).toBe("punch");
+    expect(mapKey("KeyQ")).toBe(null);
   });
 });
