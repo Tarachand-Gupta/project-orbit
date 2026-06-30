@@ -11,12 +11,14 @@ export function Buildings({ sampler }: { sampler: GroundSampler }) {
   const houses = useMemo(() => {
     const rng = mulberry32(sampler.config.seed * 17 + 3);
     const ring = sampler.config.flatRadius - 6;
-    const list: Array<{ x: number; z: number; w: number; d: number; h: number; rot: number; color: string }> = [];
-    const palette = ["#b8704a", "#9a8b6b", "#c2a878", "#8a6f52", "#a85c43"];
-    const n = 7;
+    const list: Array<{ x: number; z: number; w: number; d: number; h: number; rot: number; color: string; roof: string }> = [];
+    const palette = ["#b8704a", "#9a8b6b", "#c2a878", "#8a6f52", "#a85c43", "#7e8a6a", "#bf9a6a"];
+    const roofs = ["#5a3a28", "#6b4636", "#4a5a52", "#7a4a3a", "#3f4a55"];
+    // A fuller settlement that scales with the (now larger) flat area.
+    const n = Math.round(10 + ring * 0.06);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + 0.3;
-      const r = ring * (0.7 + rng() * 0.3);
+      const r = ring * (0.55 + rng() * 0.42);
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       list.push({
@@ -26,7 +28,8 @@ export function Buildings({ sampler }: { sampler: GroundSampler }) {
         d: 4 + rng() * 3,
         h: 3 + rng() * 2.5,
         rot: a + Math.PI,
-        color: palette[i % palette.length],
+        color: palette[(i * 3 + 1) % palette.length],
+        roof: roofs[(i * 2) % roofs.length],
       });
     }
     return list;
@@ -54,10 +57,15 @@ export function Buildings({ sampler }: { sampler: GroundSampler }) {
               <boxGeometry args={[h.w + 0.15, 0.18, h.d + 0.15]} />
               <meshStandardMaterial color="#4a3526" roughness={1} flatShading />
             </mesh>
-            {/* hip roof */}
-            <mesh position={[0, h.h + 1.3, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-              <coneGeometry args={[roofR, 2, 4]} />
-              <meshStandardMaterial color="#5a3a28" roughness={1} flatShading />
+            {/* hip roof (per-house colour) */}
+            <mesh position={[0, h.h + 1.4, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+              <coneGeometry args={[roofR, 2.2, 4]} />
+              <meshStandardMaterial color={h.roof} roughness={1} flatShading />
+            </mesh>
+            {/* front porch step */}
+            <mesh position={[0, 0.15, h.d / 2 + 0.5]} castShadow receiveShadow>
+              <boxGeometry args={[1.8, 0.3, 1.0]} />
+              <meshStandardMaterial color="#8d8a82" roughness={1} flatShading />
             </mesh>
             {/* chimney */}
             <mesh position={[h.w * 0.28, h.h + 1.4, h.d * 0.18]} castShadow>
