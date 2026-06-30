@@ -419,9 +419,15 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     // Rotor stopped → no lift, the craft settles gently to the ground (can't take off).
     if (tune.climbRate <= 0.001 && lift > 0) vy = 0;
     if (tune.rotor <= 0.001) vy = ct.y > floorY + 0.05 ? -4 : 0;
-    // Never descend through the floor; if terrain ahead rises above us, climb to clear it.
-    const projectedY = ct.y + vy * dt;
-    if (projectedY < floorY) vy = (floorY - ct.y) / dt;
+    // The land is solid: if the craft is already below the floor (e.g. after a big low-frame-rate
+    // step, or flying into rising terrain), hard-snap it back up so it can NEVER tunnel through —
+    // then never let it descend below the floor again.
+    if (ct.y < floorY) {
+      craft.setTranslation({ x: ct.x, y: floorY, z: ct.z }, true);
+      if (vy < 0) vy = 0;
+    } else if (ct.y + vy * dt < floorY) {
+      vy = (floorY - ct.y) / dt; // arrest the descent exactly at the floor
+    }
     craft.setLinvel({ x: fwd[0] * speedRef.current, y: vy, z: fwd[1] * speedRef.current }, true);
 
     // Bank into the turn; nose dips proportional to forward speed (cyclic) — the GTA look.

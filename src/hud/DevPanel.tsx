@@ -1,3 +1,4 @@
+import { Settings } from "lucide-react";
 import { useGameStore, getObjectsArray } from "@/state/store";
 import { DEFAULT_WORLD } from "@/config/world";
 import { saveWorld, clearWorld } from "@/persistence/db";
@@ -34,12 +35,12 @@ export function DevPanel() {
     <div className="flex flex-col gap-2 items-start">
       <button
         onClick={() => toggle()}
-        className="glass glass-btn rounded-full w-11 h-11 flex items-center justify-center text-lg"
+        className="glass glass-btn rounded-full w-11 h-11 flex items-center justify-center"
         data-testid="dev-toggle"
         aria-label="Developer settings"
         title="Developer / scale settings"
       >
-        ⚙︎
+        <Settings size={18} />
       </button>
 
       {open && (

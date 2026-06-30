@@ -1,3 +1,4 @@
+import { Activity } from "lucide-react";
 import { usePerfStore } from "@/state/perfStore";
 
 /**
@@ -20,7 +21,7 @@ export function PerfStats() {
         data-testid="perf-toggle"
         title="Resource usage"
       >
-        <span className="text-sm">📊</span>
+        <Activity size={14} className="text-white/70" />
         <span className={`font-mono text-sm tabular-nums ${fpsColor}`} data-testid="perf-fps">{fps}</span>
         <span className="text-[10px] text-white/50">fps</span>
       </button>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { X } from "lucide-react";
 import { useGameStore } from "@/state/store";
 import type { ControlSpec } from "@/objects/spec";
 
@@ -43,7 +44,7 @@ export function ControlsPanel() {
           className="glass-btn rounded-full w-7 h-7 flex items-center justify-center text-white/70 shrink-0"
           aria-label="Close controls"
         >
-          ✕
+          <X size={14} />
         </button>
       </div>
 

@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useDebugStore } from "@/state/debugStore";
 import { useGameStore } from "@/state/store";
 
@@ -35,7 +36,7 @@ export function DebugWindow() {
             className="glass-btn rounded-full w-7 h-7 flex items-center justify-center text-white/70"
             aria-label="Close debug log"
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       </div>

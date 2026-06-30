@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import { formatWorldTime, sunState, setTimeOverride, getTimeOverride, timeZoneLabel } from "@/time/clock";
 import { useGameStore } from "@/state/store";
 
@@ -57,7 +58,7 @@ export function Clock() {
         onClick={() => toggleClock()}
         title="Click or hover (or press T) to change the time of day"
       >
-        <span>{night ? "🌙" : "☀️"}</span>
+        {night ? <Moon size={15} className="text-sky-200" /> : <Sun size={15} className="text-amber-300" />}
         <span className="font-mono tabular-nums">{time}</span>
         <span className={`text-xs ${override !== null ? "text-sky-300" : "text-white/50"}`} title={timeZoneLabel()}>
           {override !== null ? "SET" : timeZoneLabel()}

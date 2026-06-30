@@ -88,6 +88,15 @@ describe("generateSpec", () => {
     }
   });
 
+  it("recognises weapons as wieldable with ballistics controls", () => {
+    for (const word of ["gun", "pistol", "rifle", "shotgun", "rocket launcher", "sniper"]) {
+      const spec = generateSpec(`create a ${word}`, "id").spec;
+      expect(interactionFor(spec).mode, `${word} should be wieldable`).toBe("wield");
+    }
+    const gun = generateSpec("create a pistol", "id").spec;
+    expect(gun.config.force && gun.config.range && gun.config.fireRate).toBeTruthy();
+  });
+
   it("gives vehicles live performance controls (topSpeed/acceleration/handling)", () => {
     const car = generateSpec("create a supercar", "id").spec;
     expect(car.config.topSpeed).toBeTruthy();

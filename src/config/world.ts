@@ -62,7 +62,8 @@ export interface GlassConfig {
 
 export const DEFAULT_GLASS: GlassConfig = {
   blur: 16,
-  opacity: 0.16,
+  // A touch more fill so HUD text stays legible over a bright/!busy scene.
+  opacity: 0.22,
 };
 
 /**

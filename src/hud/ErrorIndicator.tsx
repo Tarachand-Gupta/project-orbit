@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { useDebugStore } from "@/state/debugStore";
 import { useGameStore } from "@/state/store";
 
@@ -25,9 +26,9 @@ export function ErrorIndicator() {
       }`}
       data-testid="error-indicator"
       aria-label={`${unseen} unseen errors`}
-      title="Debug log"
+      title="Log (L)"
     >
-      <span className="text-lg">⚠︎</span>
+      <AlertTriangle size={17} className="text-amber-300" />
       {unseen > 0 && (
         <span
           className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center"

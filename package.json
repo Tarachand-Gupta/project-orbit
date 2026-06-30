@@ -23,6 +23,7 @@
     "@react-three/rapier": "^1.5.0",
     "ai": "^6.0.209",
     "idb": "^8.0.0",
+    "lucide-react": "^1.22.0",
     "postprocessing": "^6.39.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

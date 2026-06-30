@@ -38,7 +38,9 @@ export function Lighting({ world }: { world: WorldConfig }) {
       targetRef.current.position.set(p[0], 0, p[2]);
       targetRef.current.updateMatrixWorld();
       sunRef.current.position.set(p[0] + s.direction[0] * sunDist, s.direction[1] * sunDist + 20, p[2] + s.direction[2] * sunDist);
-      sunRef.current.intensity = 0.15 + daylight * 1.7;
+      // Softer sun so cast shadows aren't harsh/black — keeps the scene (and the glass HUD over it)
+      // readable while the lifted ambient/hemisphere fill below lightens the shadowed areas.
+      sunRef.current.intensity = 0.15 + daylight * 1.2;
       sunRef.current.color.copy(SUN_COLOR);
     }
 
@@ -53,9 +55,9 @@ export function Lighting({ world }: { world: WorldConfig }) {
       ambientRef.current.color.copy(NIGHT_AMBIENT).lerp(DAY_AMBIENT, daylight);
       // Lower fill light so the sun's directional component dominates — flat-shaded facets then
       // shade distinctly by slope (the polygon "texture" comes from lighting, not random colour).
-      ambientRef.current.intensity = 0.42 + daylight * 0.28;
+      ambientRef.current.intensity = 0.62 + daylight * 0.34;
     }
-    if (hemiRef.current) hemiRef.current.intensity = 0.28 + daylight * 0.32;
+    if (hemiRef.current) hemiRef.current.intensity = 0.42 + daylight * 0.4;
     if (starsRef.current) starsRef.current.visible = 1 - daylight > 0.05;
   });
 

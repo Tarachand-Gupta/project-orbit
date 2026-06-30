@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Settings, Sparkles, X } from "lucide-react";
 import { useGameStore } from "@/state/store";
 import { spawnFromPrompt } from "@/objects/spawn";
 import type { Provider } from "@/objects/llm";
@@ -24,7 +25,7 @@ function PromptSettings({ onClose }: { onClose: () => void }) {
     <div className="glass glass-strong rounded-2xl p-3 w-[300px] mb-2" data-testid="prompt-settings">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs uppercase tracking-wide text-white/55">Generation</span>
-        <button onClick={onClose} className="text-white/50 hover:text-white text-xs" aria-label="Close settings">✕</button>
+        <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close settings"><X size={14} /></button>
       </div>
       <div className="grid grid-cols-2 gap-1.5 mb-2">
         {PROVIDERS.map((p) => (
@@ -116,9 +117,9 @@ export function PromptBox() {
             data-testid="prompt-settings-toggle"
             title={`Generation settings — ${provider}`}
           >
-            ⚙︎
+            <Settings size={15} />
           </button>
-          <span className="text-lg opacity-80">✦</span>
+          <Sparkles size={16} className="opacity-80 text-sky-200 shrink-0" />
           <input
             ref={inputRef}
             value={value}
@@ -149,7 +150,7 @@ export function PromptBox() {
             className="glass-btn rounded-full w-8 h-8 flex items-center justify-center text-white/70"
             aria-label="Close prompt"
           >
-            ✕
+            <X size={15} />
           </button>
         </div>
       ) : (
@@ -158,9 +159,9 @@ export function PromptBox() {
           className="glass glass-btn rounded-full px-6 py-3 flex items-center gap-2 font-medium shadow-lg"
           data-testid="prompt-toggle"
         >
-          <span className="text-lg">✦</span>
+          <Sparkles size={17} className="text-sky-200" />
           <span>Create something…</span>
-          <kbd className="ml-1 inline-flex items-center justify-center h-5 px-1.5 rounded bg-white/20 border border-white/25 text-[11px] font-semibold">/</kbd>
+          <kbd className="ml-1 inline-flex items-center justify-center h-5 px-1.5 rounded bg-white/20 border border-white/25 text-[11px] font-semibold">C</kbd>
         </button>
       )}
 

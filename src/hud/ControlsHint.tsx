@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 
 /** Small dismissible controls legend (bottom-left) so players know how to move. */
 export function ControlsHint() {
@@ -8,13 +9,13 @@ export function ControlsHint() {
     <div className="absolute bottom-6 left-6 glass rounded-xl px-3 py-2 text-xs text-white/80 max-w-[220px]" data-testid="controls-hint">
       <div className="flex items-center justify-between mb-1">
         <span className="font-semibold">Controls</span>
-        <button onClick={() => setOpen(false)} className="text-white/50 hover:text-white" aria-label="Hide controls">✕</button>
+        <button onClick={() => setOpen(false)} className="text-white/50 hover:text-white" aria-label="Hide controls"><X size={13} /></button>
       </div>
       <div className="space-y-0.5 text-white/70">
         <div><b>WASD</b> / arrows — walk · <b>Shift</b> run · <b>Space</b> jump · <b>Shift+Space</b> super-jump</div>
         <div><b>Mouse</b> (click to lock) — look up/down/around · <b>Esc</b> free cursor</div>
-        <div><b>E</b> — enter / drive / fly · exit · <Key>Z</Key> kick · <Key>X</Key> punch</div>
-        <div><Key>/</Key> create · <Key>T</Key> time · <Key>Y</Key> objects · <Key>G</Key> errors · <Key>⌘C</Key> shot</div>
+        <div><Key>E</Key> enter / exit · <Key>F</Key> fire · <Key>Z</Key> kick · <Key>X</Key> punch</div>
+        <div><Key>C</Key> create · <Key>O</Key> objects · <Key>T</Key> time · <Key>L</Key> log · <Key>⌘C</Key> shot</div>
       </div>
     </div>
   );
