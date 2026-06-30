@@ -15,6 +15,7 @@ import { Lighting } from "@/world/Lighting";
 import { Player } from "@/player/Player";
 import { SpawnedObject } from "@/objects/SpawnedObject";
 import { BurnController } from "@/objects/BurnController";
+import { WeaponTracers } from "@/objects/WeaponTracers";
 import { PostFX } from "./PostFX";
 import { PerfProbe } from "./PerfProbe";
 
@@ -74,6 +75,7 @@ export function Scene() {
         {/* Non-colliding scenery */}
         <River sampler={sampler} />
         <Lake sampler={sampler} />
+        <WeaponTracers />
       </Suspense>
       <PostFX />
       <PerfProbe />

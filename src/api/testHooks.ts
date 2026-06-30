@@ -21,6 +21,8 @@ export interface OrbitTestHooks {
   enterVehicle: (id: string) => void;
   /** Current driving vehicle id, or null. */
   drivingId: () => string | null;
+  /** Equip a weapon by id (hides the world object + holds it), bypassing proximity for tests. */
+  equipWeapon: (id: string) => void;
   /** Current driven/flown speed (m/s); 0 on foot. Reflects the live config-tuned speed. */
   vehicleSpeed: () => number;
   /** Live world position of a spawned object. */
@@ -57,6 +59,10 @@ export function installTestHooks(): void {
     playerPos: () => usePlayerStore.getState().position,
     enterVehicle: (id) => usePlayerStore.getState().enterVehicle(id),
     drivingId: () => usePlayerStore.getState().drivingId,
+    equipWeapon: (id) => {
+      useGameStore.getState().setHidden(id, true);
+      usePlayerStore.getState().equipWeapon(id);
+    },
     vehicleSpeed: () => usePlayerStore.getState().speed,
     objectPos: (id) => {
       const body = getBody(id);
@@ -90,6 +96,7 @@ export function installTestHooks(): void {
       resetInput();
       const ps = usePlayerStore.getState();
       if (ps.drivingId) ps.exitVehicle(ps.position);
+      if (ps.equippedWeaponId) ps.equipWeapon(null);
       ps.setSpeed(0);
       ps.teleportTo([0, 0, 0]);
       ps.setCameraYaw(0);

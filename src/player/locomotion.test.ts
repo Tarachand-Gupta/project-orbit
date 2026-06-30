@@ -70,6 +70,7 @@ describe("mapKey", () => {
     expect(mapKey("KeyE")).toBe("interact");
     expect(mapKey("KeyZ")).toBe("kick");
     expect(mapKey("KeyX")).toBe("punch");
+    expect(mapKey("KeyF")).toBe("fire");
     expect(mapKey("KeyQ")).toBe(null);
   });
 });

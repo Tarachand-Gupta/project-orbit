@@ -62,7 +62,7 @@ export const LlmSpecSchema = z.object({
   config: z.array(LlmControlSchema).max(12),
   interaction: z
     .object({
-      mode: z.enum(["none", "drive", "fly", "ride"]),
+      mode: z.enum(["none", "drive", "fly", "ride", "wield"]),
       verb: z.string().optional(),
       seatHeight: z.number().optional().describe("height above the object where the rider is placed"),
       posture: z

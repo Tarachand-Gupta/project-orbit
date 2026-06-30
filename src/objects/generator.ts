@@ -386,6 +386,29 @@ const robot: Template = () => ({
   },
 });
 
+// A low-poly firearm, modeled facing +Z (muzzle points forward). Wieldable (mode "wield"): pick it
+// up with E and fire with F / left-click. The "force"/"range"/"fireRate" controls drive the shot.
+const gun: Template = () => ({
+  type: "gun",
+  parts: [
+    box([0.16, 0.5, 0.34], "steel", [0, 0.0, -0.32]), // grip
+    box([0.2, 0.26, 1.5], "paint_black", [0, 0.42, 0.25]), // body/receiver
+    cyl(0.07, 0.07, 1.1, "chrome", [0, 0.5, 0.95], [Math.PI / 2, 0, 0]), // barrel (+Z)
+    box([0.16, 0.12, 0.5], "wood", [0, 0.3, -0.7]), // stock
+    box([0.06, 0.18, 0.1], "steel", [0, 0.18, 0.5]), // trigger guard
+    box([0.14, 0.3, 0.18], "paint_black", [0, 0.18, -0.05]), // magazine
+    box([0.04, 0.08, 0.04], "steel", [0, 0.6, 1.45]), // front sight (marks the muzzle, +Z)
+  ],
+  physics: { mass: 4, friction: 0.6, restitution: 0.1, flammable: false },
+  config: {
+    force: slider(60, 5, 200, 5, "Ballistics", "Impact force"),
+    range: slider(80, 10, 200, 5, "Ballistics", "Range"),
+    fireRate: slider(6, 1, 20, 1, "Ballistics", "Fire rate (shots/s)"),
+    automatic: checkbox(false, "Ballistics", "Full-auto"),
+  },
+  interaction: { mode: "wield", verb: "equip" },
+});
+
 const crate: Template = () => ({
   type: "prop",
   parts: [box([1.4, 1.4, 1.4], "wood", [0, 0.7, 0])],
@@ -398,6 +421,8 @@ const crate: Template = () => ({
 
 // keyword → template, checked in order (more specific first)
 const TEMPLATES: Array<{ keys: string[]; name: string; build: Template }> = [
+  // Weapons first so "rocket launcher" → gun, not the rocket vehicle.
+  { keys: ["gun", "pistol", "rifle", "revolver", "shotgun", "smg", "blaster", "raygun", "ray gun", "laser gun", "cannon", "bazooka", "rocket launcher", "launcher", "minigun", "uzi", "ak47", "ak-47", "musket", "sniper", "weapon", "firearm", "handgun"], name: "gun", build: gun },
   { keys: ["motorcycle", "motorbike", "superbike", "super bike", "sportbike", "sport bike", "off-road bike", "offroad bike", "dirt bike", "dirtbike", "bicycle", "pushbike", "mountain bike", "bmx", "cycle", "bike", "scooter", "moped"], name: "motorcycle", build: motorcycle },
   { keys: ["supercar", "sports car", "race car", "racing car", "car", "vehicle", "ferrari", "lamborghini", "truck", "pickup", "pick-up", "bus", "van", "jeep", "suv", "buggy", "dune buggy", "go-kart", "go kart", "kart", "tank", "hovercraft", "hover car", "atv", "quad bike", "quad", "taxi", "cab", "police car", "cop car", "ambulance", "convertible", "sedan", "coupe", "roadster"], name: "supercar", build: supercar },
   { keys: ["taj mahal", "taj", "palace", "temple", "monument", "mahal"], name: "tajMahal", build: tajMahal },

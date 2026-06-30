@@ -11,6 +11,10 @@ import { getBody } from "@/objects/bodyRegistry";
 import { interactionFor, type ObjectSpec } from "@/objects/spec";
 import { specBoundingRadius, specBounds } from "@/objects/geometry";
 import { resolveDriveTuning, resolveFlyTuning } from "@/objects/tuning";
+import { resolveWeaponTuning, shotImpulse } from "@/objects/weapon";
+import { emitTracer } from "@/objects/weaponFx";
+import { ObjectMesh } from "@/objects/ObjectMesh";
+import { setFireOnClick } from "./input";
 import { vehicleVerticalStep } from "./vehicleAir";
 import { slideMove } from "./vehicleCollide";
 import { supportsRaycastPhysics } from "@/vehicles/raycastVehicle";
@@ -70,10 +74,17 @@ function isRealisticGround(spec: ObjectSpec): boolean {
 export function Player({ sampler }: { sampler: GroundSampler }) {
   const bodyRef = useRef<RapierRigidBody>(null);
   const riderRef = useRef<THREE.Group>(null);
+  const heldGunRef = useRef<THREE.Group>(null);
+  const fireCooldownRef = useRef(0);
   const { camera, gl } = useThree();
   const { world, rapier } = useRapier();
   const probeRef = useRef<InstanceType<typeof rapier.Ball> | null>(null);
   const worldLimit = sampler.config.size - 3;
+
+  // The weapon the player is holding (subscribed so the held mesh appears/disappears on equip).
+  const equippedId = usePlayerStore((s) => s.equippedWeaponId);
+  const equippedSpec = useGameStore((s) => (equippedId ? s.objects[equippedId]?.spec ?? null : null));
+  useEffect(() => setFireOnClick(!!equippedId), [equippedId]);
 
   const yawRef = useRef(0);
   const pitchRef = useRef(0);
@@ -252,9 +263,36 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
 
     const nearest = findNearestInteractable(px, pz);
     store.setNearby(nearest);
-    if (input.interactPressed && nearest) {
-      body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-      usePlayerStore.getState().enterVehicle(nearest);
+    if (input.interactPressed) {
+      if (store.equippedWeaponId) {
+        // Holster: drop the weapon back into the world (it reappears where it was spawned).
+        useGameStore.getState().setHidden(store.equippedWeaponId, false);
+        store.equipWeapon(null);
+      } else if (nearest) {
+        const obj = useGameStore.getState().objects[nearest];
+        if (obj && interactionFor(obj.spec).mode === "wield") {
+          // Pick up the weapon: hide the ground object and hold it.
+          useGameStore.getState().setHidden(nearest, true);
+          store.equipWeapon(nearest);
+        } else {
+          body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+          store.enterVehicle(nearest);
+        }
+      }
+    }
+
+    // ---- weapon: aim where the camera looks; fire with F / left-click (raycast + impulse). ----
+    fireCooldownRef.current = Math.max(0, fireCooldownRef.current - dt);
+    if (store.equippedWeaponId) {
+      const gunSpec = useGameStore.getState().objects[store.equippedWeaponId]?.spec;
+      if (gunSpec) {
+        positionHeldGun(px, py, pz);
+        if (input.firePressed && fireCooldownRef.current <= 0) {
+          const tune = resolveWeaponTuning(gunSpec);
+          fireWeapon(px, py, pz);
+          fireCooldownRef.current = tune.cooldown;
+        }
+      }
     }
 
     // Orbit the camera vertically by pitch (look up/down) around the player.
@@ -405,6 +443,51 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     camera.lookAt(camTarget);
   }
 
+  /** Hold the gun at the player's right hand, pointed where the camera aims. */
+  function positionHeldGun(px: number, py: number, pz: number) {
+    const g = heldGunRef.current;
+    if (!g) return;
+    g.visible = true;
+    const fwd = forwardFromYaw(yawRef.current); // [fx, fz]
+    const rx = fwd[1], rz = -fwd[0]; // right = forward rotated 90°
+    g.position.set(px + fwd[0] * 0.45 + rx * 0.34, py - FOOT_OFFSET + 1.15, pz + fwd[1] * 0.45 + rz * 0.34);
+    g.rotation.set(pitchRef.current * 0.7, yawRef.current, 0);
+  }
+
+  /** Fire the equipped weapon: a raycast along the camera aim, an impulse on a struck dynamic body,
+   *  a tracer, and a little recoil kick. */
+  function fireWeapon(px: number, py: number, pz: number) {
+    const id = usePlayerStore.getState().equippedWeaponId;
+    const gunSpec = id ? useGameStore.getState().objects[id]?.spec : null;
+    if (!gunSpec || !world) return;
+    const tune = resolveWeaponTuning(gunSpec);
+    // Aim where the player faces (yaw), tilted by the look pitch — deterministic and matches the
+    // third-person camera without depending on the camera having settled.
+    const fwd = forwardFromYaw(yawRef.current);
+    const cp = Math.cos(pitchRef.current);
+    fwdVec.set(fwd[0] * cp, -Math.sin(pitchRef.current), fwd[1] * cp).normalize();
+    const ox = px + fwdVec.x * 1.3;
+    const oy = py - FOOT_OFFSET + 1.2 + fwdVec.y * 1.3;
+    const oz = pz + fwdVec.z * 1.3;
+    const ray = new rapier.Ray({ x: ox, y: oy, z: oz }, { x: fwdVec.x, y: fwdVec.y, z: fwdVec.z });
+    const hit = world.castRay(ray, tune.range, true, undefined, undefined, undefined, bodyRef.current ?? undefined);
+    let tx = ox + fwdVec.x * tune.range, ty = oy + fwdVec.y * tune.range, tz = oz + fwdVec.z * tune.range;
+    if (hit) {
+      const h = hit as unknown as { toi?: number; timeOfImpact?: number; collider: { parent: () => RapierRigidBody | null } };
+      const toi = h.toi ?? h.timeOfImpact ?? tune.range;
+      tx = ox + fwdVec.x * toi;
+      ty = oy + fwdVec.y * toi;
+      tz = oz + fwdVec.z * toi;
+      const hb = h.collider.parent();
+      if (hb && hb.bodyType() === 0) {
+        const imp = shotImpulse(tune.force, hb.mass() || 4, [fwdVec.x, fwdVec.y, fwdVec.z]);
+        hb.applyImpulseAtPoint({ x: imp[0], y: imp[1], z: imp[2] }, { x: tx, y: ty, z: tz }, true);
+      }
+    }
+    emitTracer([ox, oy, oz], [tx, ty, tz]);
+    pitchRef.current = clamp(pitchRef.current + 0.045, -0.38, 0.62); // recoil kick
+  }
+
   /**
    * True if a solid obstacle (building, tree, rock, or any other spawned object) occupies the given
    * spot. The vehicle being driven is excluded via Rapier's own body filter; the terrain is avoided
@@ -460,6 +543,10 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
           vehicle while driving) so we can show the rider seated on a bike/car. */}
       <group ref={riderRef}>
         <Avatar />
+      </group>
+      {/* Held weapon — rendered in world space at the player's hand while a gun is equipped. */}
+      <group ref={heldGunRef} visible={false}>
+        {equippedSpec && <ObjectMesh spec={equippedSpec} scale={0.9} />}
       </group>
     </>
   );

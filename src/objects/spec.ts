@@ -70,7 +70,7 @@ export interface ControlSpec {
  * objects/agents declare this so anything can be made enterable/drivable/flyable with a standard
  * GTA-style scheme (E to enter, E to exit).
  */
-export type InteractionMode = "none" | "drive" | "fly" | "ride";
+export type InteractionMode = "none" | "drive" | "fly" | "ride" | "wield";
 
 /**
  * How the avatar is posed on the object (the rider-interaction API):
@@ -185,8 +185,8 @@ export function validateSpec(input: unknown): ValidationResult {
 
   if (spec.interaction !== undefined) {
     const it = spec.interaction;
-    if (!it || typeof it !== "object" || !["none", "drive", "fly", "ride"].includes(it.mode)) {
-      errors.push("interaction.mode must be one of none|drive|fly|ride");
+    if (!it || typeof it !== "object" || !["none", "drive", "fly", "ride", "wield"].includes(it.mode)) {
+      errors.push("interaction.mode must be one of none|drive|fly|ride|wield");
     }
   }
 
@@ -212,6 +212,7 @@ export function validateSpec(input: unknown): ValidationResult {
   return { ok: errors.length === 0, errors };
 }
 
+const WIELD_TYPES = ["gun", "pistol", "rifle", "revolver", "shotgun", "smg", "weapon", "blaster", "raydun", "raygun", "laser", "cannon", "bazooka", "rocket launcher", "launcher", "minigun", "uzi", "ak47", "ak-47", "musket", "sniper"];
 const FLY_TYPES = ["aircraft", "plane", "airplane", "jet", "helicopter", "chopper", "drone", "spaceship", "glider", "ufo"];
 const DRIVE_TYPES = ["vehicle", "car", "truck", "bus", "van", "jeep", "suv", "buggy", "boat", "ship", "tank", "kart", "atv", "quad", "hovercraft", "motorcycle", "motorbike", "bicycle", "cycle", "bike", "scooter"];
 const RIDE_TYPES = ["hoverboard", "skateboard", "surfboard", "snowboard", "longboard", "board", "segway", "horse", "mount", "animal", "dragon", "magic carpet", "carpet"];
@@ -247,12 +248,15 @@ export function interactionFor(spec: ObjectSpec): InteractionSpec {
 
   let mode: InteractionMode | undefined = explicit?.mode;
   if (!mode) {
-    if (FLY_TYPES.some((k) => t.includes(k))) mode = "fly";
+    if (WIELD_TYPES.some((k) => t.includes(k))) mode = "wield";
+    else if (FLY_TYPES.some((k) => t.includes(k))) mode = "fly";
     else if (RIDE_TYPES.some((k) => t.includes(k))) mode = "ride";
     else if (DRIVE_TYPES.some((k) => t.includes(k))) mode = "drive";
     else mode = "none";
   }
   if (mode === "none") return { mode: "none" };
+  // Weapons are held, not ridden — no posture/seat, just the equip verb.
+  if (mode === "wield") return { mode, verb: explicit?.verb ?? "equip" };
 
   // Posture: a strong type signal overrides the LLM; else use the LLM's posture; else default by mode.
   const forced = POSTURE_BY_TYPE.find(([re]) => re.test(t))?.[1];

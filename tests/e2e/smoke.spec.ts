@@ -469,4 +469,46 @@ test.describe("Project Orbit — walkable world", () => {
     }, id);
     expect(peakSpeed, `buggy reached ${peakSpeed.toFixed(2)} m/s`).toBeGreaterThan(2);
   });
+
+  test("a spawned gun is wieldable and fires to knock a target back", async ({ page }) => {
+    await boot(page);
+    // A light crate target sits in front of the player; a gun is spawned to wield.
+    const ids = await page.evaluate(() => {
+      const crate = window.game.spawn("create a crate");
+      const gun = window.game.spawn("create a pistol");
+      return { crate: crate.id!, gun: gun.id! };
+    });
+    // The gun must be recognised as a wieldable weapon.
+    const mode = await page.evaluate((g) => (window.game.describe(g) as { interaction?: { mode?: string } } | null)?.interaction?.mode, ids.gun);
+    expect(mode).toBe("wield");
+
+    await page.waitForTimeout(1600); // let the crate drop & settle
+    // Stand a few metres from the crate, face it, and equip the gun.
+    const before = await page.evaluate((c) => window.__orbitTest!.objectPos(c)!, ids.crate);
+    await page.evaluate((d) => {
+      const c = window.__orbitTest!.objectPos(d.crate)!;
+      // place the player ~5u toward -Z of the crate, looking at it (+Z)
+      window.__orbitTest!.teleport(c[0], c[2] - 5, 0);
+      window.__orbitTest!.equipWeapon(d.gun);
+    }, ids);
+    await page.waitForTimeout(700); // let the camera settle behind the player
+
+    // Fire several shots at the crate and measure its peak speed (impulse on impact).
+    const peak = await page.evaluate(async (c) => {
+      let m = 0;
+      for (let i = 0; i < 10; i++) {
+        window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyF" }));
+        window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyF" }));
+        await new Promise((r) => setTimeout(r, 120));
+        m = Math.max(m, window.__orbitTest!.objectSpeed(c));
+      }
+      return m;
+    }, ids.crate);
+    const after = await page.evaluate((c) => window.__orbitTest!.objectPos(c)!, ids.crate);
+    const moved = Math.hypot(after[0] - before[0], after[2] - before[2]);
+
+    // The crate was struck: it picked up speed and was shoved from where it sat.
+    expect(peak, `crate peak speed after fire = ${peak.toFixed(2)}`).toBeGreaterThan(1);
+    expect(moved, `crate shoved ${moved.toFixed(2)}`).toBeGreaterThan(0.5);
+  });
 });

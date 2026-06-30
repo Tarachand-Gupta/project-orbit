@@ -21,6 +21,8 @@ export interface PlayerState {
   nearbyVehicleId: string | null;
   /** Id of the vehicle currently being driven, or null when on foot. */
   drivingId: string | null;
+  /** Id of the weapon the player currently holds, or null. */
+  equippedWeaponId: string | null;
   /** Bumped to request the player body teleport to a position (e.g. on exit). */
   teleport: [number, number, number] | null;
 
@@ -31,6 +33,8 @@ export interface PlayerState {
   setNearby: (id: string | null) => void;
   enterVehicle: (id: string) => void;
   exitVehicle: (at: [number, number, number]) => void;
+  /** Equip / holster a weapon (null = put it away). */
+  equipWeapon: (id: string | null) => void;
   /** Request the on-foot player be moved to a position (consumed next frame). */
   teleportTo: (at: [number, number, number]) => void;
   consumeTeleport: () => [number, number, number] | null;
@@ -43,6 +47,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   speed: 0,
   nearbyVehicleId: null,
   drivingId: null,
+  equippedWeaponId: null,
   teleport: null,
 
   setPosition: (p) => {
@@ -60,6 +65,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setNearby: (id) => set((s) => (s.nearbyVehicleId === id ? s : { nearbyVehicleId: id })),
   enterVehicle: (id) => set({ drivingId: id, nearbyVehicleId: null }),
   exitVehicle: (at) => set({ drivingId: null, teleport: at }),
+  equipWeapon: (id) => set({ equippedWeaponId: id, nearbyVehicleId: null }),
   teleportTo: (at) => set({ teleport: at }),
   consumeTeleport: () => {
     const t = get().teleport;
