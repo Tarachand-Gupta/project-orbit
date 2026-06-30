@@ -304,39 +304,34 @@ test.describe("Project Orbit — walkable world", () => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create a motorbike").id!);
     await page.waitForTimeout(1400);
-    await page.evaluate((vid) => window.__orbitTest!.enterVehicle(vid), id);
+    // Drive at each top-speed setting from REST (exit + re-enter resets speed, avoiding slow
+    // deceleration at the headless frame rate) and read the controller's actual commanded peak
+    // speed. The bike circles (W+D) so it stays in the clear flat spawn area. Only the slider changes.
+    const peakAt = async (topSpeed: number) => {
+      await page.evaluate((vid) => window.__orbitTest!.enterVehicle(vid), id);
+      await page.evaluate((args) => window.game.setConfig(args.id, "topSpeed", args.ts), { id, ts: topSpeed });
+      await page.keyboard.down("w");
+      await page.keyboard.down("d");
+      await page.waitForTimeout(2600); // accelerate from rest to this top speed
+      const peak = await page.evaluate(async () => {
+        let m = 0;
+        const end = Date.now() + 1000;
+        while (Date.now() < end) {
+          m = Math.max(m, window.__orbitTest!.vehicleSpeed());
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        return m;
+      });
+      await page.keyboard.up("w");
+      await page.keyboard.up("d");
+      await page.evaluate(() => window.__orbitTest!.exitVehicle());
+      await page.waitForTimeout(300);
+      return peak;
+    };
 
-    // One continuous drive in a tight CIRCLE (W+D) so the bike stays in the clear flat spawn area
-    // (no obstacles). At a HIGH top-speed setting it reaches a high commanded speed; lower the
-    // control live and it slows. Same throttle held — only the slider changed.
-    const sample = (vid: string, ms: number, reducer: "max" | "min") =>
-      page.evaluate(
-        async ([, dur, red]) => {
-          let v = red === "max" ? 0 : Infinity;
-          const end = Date.now() + (dur as number);
-          while (Date.now() < end) {
-            const s = window.__orbitTest!.vehicleSpeed();
-            v = red === "max" ? Math.max(v, s) : Math.min(v, s);
-            await new Promise((r) => setTimeout(r, 50));
-          }
-          return v;
-        },
-        [vid, ms, reducer] as const,
-      );
+    const speedFast = await peakAt(300);
+    const speedSlow = await peakAt(20);
 
-    await page.evaluate((vid) => window.game.setConfig(vid, "topSpeed", 300), id);
-    await page.keyboard.down("w");
-    await page.keyboard.down("d"); // circle so it never drives off into obstacles
-    await page.waitForTimeout(2600); // reach the high top speed
-    const speedFast = await sample(id, 1000, "max");
-
-    await page.evaluate((vid) => window.game.setConfig(vid, "topSpeed", 20), id); // lower it live
-    await page.waitForTimeout(5000); // decelerate to the new (much lower) top speed
-    const speedSlow = await sample(id, 1000, "min");
-    await page.keyboard.up("w");
-    await page.keyboard.up("d");
-
-    // Sanity: it really was moving fast, and lowering the control really slowed it down.
     expect(speedFast, `peak fast speed=${speedFast.toFixed(1)} m/s`).toBeGreaterThan(20);
     expect(speedFast, `fast=${speedFast.toFixed(1)} m/s slow=${speedSlow.toFixed(1)} m/s`).toBeGreaterThan(speedSlow * 1.6);
   });
@@ -392,18 +387,13 @@ test.describe("Project Orbit — walkable world", () => {
     await page.waitForTimeout(1500);
     await page.evaluate((vid) => window.__orbitTest!.enterVehicle(vid), id);
 
-    const headingOver = async (ms: number) => {
-      const a = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
-      await page.waitForTimeout(ms);
-      const b = await page.evaluate((vid) => window.__orbitTest!.objectPos(vid)!, id);
-      return Math.atan2(b[0] - a[0], b[2] - a[2]);
-    };
+    // Read the craft's actual heading (yaw) — frame-rate independent — before vs after steering.
     await page.keyboard.down("w");
-    await page.waitForTimeout(1200); // build up speed so steering has authority
-    const h0 = await headingOver(400);
+    await page.waitForTimeout(1000); // build up speed so steering has authority
+    const h0 = await page.evaluate(() => window.__orbitTest!.vehicleHeading());
     await page.keyboard.down("d"); // steer right
     await page.waitForTimeout(2200);
-    const h1 = await headingOver(400);
+    const h1 = await page.evaluate(() => window.__orbitTest!.vehicleHeading());
     await page.keyboard.up("w");
     await page.keyboard.up("d");
     let turned = Math.abs(h1 - h0);

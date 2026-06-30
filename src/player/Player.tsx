@@ -380,6 +380,7 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     const ps = usePlayerStore.getState();
     ps.setPosition([nx, ny, nz]);
     ps.setSpeed(Math.abs(speedRef.current));
+    ps.setHeading(craftYawRef.current);
     cameraChase({ x: nx, y: ny, z: nz }, craftYawRef.current, DRIVE_CAM_DISTANCE, DRIVE_CAM_HEIGHT, 1.5);
   }
 

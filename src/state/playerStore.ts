@@ -17,6 +17,8 @@ export interface PlayerState {
   moving: boolean;
   /** Current speed (m/s) of the vehicle being driven/flown, 0 on foot (transient). */
   speed: number;
+  /** Current heading (yaw, radians) of the vehicle being driven/flown (transient). */
+  heading: number;
   /** Id of a drivable vehicle within interaction range, or null. */
   nearbyVehicleId: string | null;
   /** Id of the vehicle currently being driven, or null when on foot. */
@@ -30,6 +32,7 @@ export interface PlayerState {
   setCameraYaw: (y: number) => void;
   setMoving: (m: boolean) => void;
   setSpeed: (s: number) => void;
+  setHeading: (h: number) => void;
   setNearby: (id: string | null) => void;
   enterVehicle: (id: string) => void;
   exitVehicle: (at: [number, number, number]) => void;
@@ -45,6 +48,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   cameraYaw: 0,
   moving: false,
   speed: 0,
+  heading: 0,
   nearbyVehicleId: null,
   drivingId: null,
   equippedWeaponId: null,
@@ -61,6 +65,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
   setSpeed: (s) => {
     get().speed = s;
+  },
+  setHeading: (h) => {
+    get().heading = h;
   },
   setNearby: (id) => set((s) => (s.nearbyVehicleId === id ? s : { nearbyVehicleId: id })),
   enterVehicle: (id) => set({ drivingId: id, nearbyVehicleId: null }),

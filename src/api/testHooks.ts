@@ -25,6 +25,10 @@ export interface OrbitTestHooks {
   equipWeapon: (id: string) => void;
   /** Current driven/flown speed (m/s); 0 on foot. Reflects the live config-tuned speed. */
   vehicleSpeed: () => number;
+  /** Current driven/flown heading (yaw radians). */
+  vehicleHeading: () => number;
+  /** Exit the current vehicle (back on foot), for deterministic test setup. */
+  exitVehicle: () => void;
   /** Live world position of a spawned object. */
   objectPos: (id: string) => [number, number, number] | null;
   /** Live linear-velocity magnitude of a spawned object (for kick/punch tests). */
@@ -64,6 +68,11 @@ export function installTestHooks(): void {
       usePlayerStore.getState().equipWeapon(id);
     },
     vehicleSpeed: () => usePlayerStore.getState().speed,
+    vehicleHeading: () => usePlayerStore.getState().heading,
+    exitVehicle: () => {
+      const ps = usePlayerStore.getState();
+      if (ps.drivingId) ps.exitVehicle(ps.position);
+    },
     objectPos: (id) => {
       const body = getBody(id);
       if (body) {
