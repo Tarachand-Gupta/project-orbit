@@ -57,6 +57,13 @@ test.describe("Project Orbit — walkable world", () => {
     await expect(page.getByTestId("dev-toggle")).toBeVisible();
     await expect(page.getByTestId("controls-hint")).toBeVisible();
 
+    // The player must rest ON the ground, not fall through it (regression: on the big world the
+    // terrain trimesh collider takes a moment to build, so the capsule must be caught at the surface).
+    const feetY = await page.evaluate(() => window.__orbitTest!.playerPos()[1]);
+    const groundY = await page.evaluate(() => window.__orbitTest!.terrainHeightAt(0, 0));
+    expect(feetY - groundY, `player feet ${(feetY - groundY).toFixed(2)} above ground`).toBeGreaterThan(-1.5);
+    expect(feetY - groundY, `player feet ${(feetY - groundY).toFixed(2)} above ground`).toBeLessThan(6);
+
     expect(errors, `console errors:\n${errors.join("\n")}`).toEqual([]);
   });
 

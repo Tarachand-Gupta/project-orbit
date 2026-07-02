@@ -233,10 +233,15 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     body.setLinvel({ x: mx * speed, y: cur.y, z: mz * speed }, true);
 
     const groundY = sampler.heightAt(px, pz);
-    // Safety net: if the player somehow ends up far above the terrain (e.g. exiting a high-flying
-    // craft into a bad state), drop them back to the ground instead of stranding them in the sky.
-    if (py - FOOT_OFFSET - groundY > 40) {
-      body.setTranslation({ x: px, y: groundY + FOOT_OFFSET, z: pz }, true);
+    // Safety net: keep the player on the terrain surface. Two failure modes are caught here:
+    //  • stranded far ABOVE the ground (e.g. exiting a high-flying craft into a bad state), and
+    //  • fallen BELOW / THROUGH the ground — which happens right after a reload on the big world,
+    //    because the capsule starts falling under gravity before the large terrain trimesh collider
+    //    has finished building. Snapping to the surface each frame holds the player in place until
+    //    the collider is ready (then it simply rests on it).
+    const heightAboveGround = py - FOOT_OFFSET - groundY;
+    if (heightAboveGround > 40 || heightAboveGround < -1.5) {
+      body.setTranslation({ x: px, y: groundY + FOOT_OFFSET + 0.05, z: pz }, true);
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       snapCam.current = true;
     }
