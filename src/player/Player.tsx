@@ -96,6 +96,10 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
   const wasControlling = useRef<string | null>(null);
   const headingRef = useRef(0);
   const snapCam = useRef(false);
+  // False until a real collider (terrain/road) is confirmed under the player. Until then the
+  // capsule is held on the analytic surface with gravity off, so it can NEVER fall into the
+  // still-building terrain trimesh and wedge inside it (WebKit's slower boot hit this).
+  const groundReady = useRef(false);
 
   const spawnY = sampler.heightAt(0, 0) + FOOT_OFFSET + 0.5;
 
@@ -226,6 +230,27 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     const px = t.x, py = t.y, pz = t.z;
     store.setPosition([px, py - FOOT_OFFSET, pz]);
 
+    // ---- boot/reload grounding gate ----
+    // The large terrain trimesh takes several frames to build (noticeably longer on WKWebView —
+    // the native macOS shell — than on Chromium). A dynamic capsule spawned before it exists falls
+    // into the half-built mesh and can WEDGE inside the surface, where contact resolution can't
+    // eject it (seen as the avatar buried to the waist in the native app). Hold the capsule with
+    // gravity off, glued to the analytic surface, until a downward ray confirms a real collider
+    // beneath — only then hand it to gravity.
+    if (!groundReady.current) {
+      const gy = sampler.heightAt(px, pz);
+      const probe = new rapier.Ray({ x: px, y: gy + 30, z: pz }, { x: 0, y: -1, z: 0 });
+      const hit = world.castRay(probe, 60, true, undefined, undefined, undefined, body);
+      if (hit) {
+        groundReady.current = true;
+        body.setGravityScale(1, true);
+      } else {
+        body.setGravityScale(0, true);
+        body.setTranslation({ x: px, y: gy + FOOT_OFFSET + 0.05, z: pz }, true);
+        body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      }
+    }
+
     const [mx, mz] = inputToMove(input, yawRef.current);
     const moving = mx !== 0 || mz !== 0;
     const speed = input.run ? RUN_SPEED : WALK_SPEED;
@@ -235,12 +260,11 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
     const groundY = sampler.heightAt(px, pz);
     // Safety net: keep the player on the terrain surface. Two failure modes are caught here:
     //  • stranded far ABOVE the ground (e.g. exiting a high-flying craft into a bad state), and
-    //  • fallen BELOW / THROUGH the ground — which happens right after a reload on the big world,
-    //    because the capsule starts falling under gravity before the large terrain trimesh collider
-    //    has finished building. Snapping to the surface each frame holds the player in place until
-    //    the collider is ready (then it simply rests on it).
+    //  • sunk BELOW the surface (wedged inside the trimesh — e.g. spawned/reloaded into a
+    //    half-built collider). −0.6 is deeper than any legitimate trimesh-vs-analytic divergence
+    //    on slopes (~0.4 max at this grid resolution), so it only fires on true penetration.
     const heightAboveGround = py - FOOT_OFFSET - groundY;
-    if (heightAboveGround > 40 || heightAboveGround < -1.5) {
+    if (heightAboveGround > 40 || heightAboveGround < -0.6) {
       body.setTranslation({ x: px, y: groundY + FOOT_OFFSET + 0.05, z: pz }, true);
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       snapCam.current = true;

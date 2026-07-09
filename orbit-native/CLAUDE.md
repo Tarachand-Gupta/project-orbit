@@ -118,6 +118,14 @@ key `GEMINI_API_KEY` from repo-root `.env`, server-side only). Therefore:
 - Computer-use `request_access` needs the app running as a **bundled .app** (a bare zig-out
   binary has no stable identity to grant); use bundle id `dev.orbit.project-orbit`.
 - The e2e suite and the native dev shell can't run simultaneously (both want port 5191).
+- **WKWebView ≠ Chromium — test rendering bugs with Playwright's `webkit` engine.** The player
+  used to spawn buried to the waist ONLY in the native app: WebKit's slower prod boot let the
+  capsule fall into the still-building terrain trimesh and wedge inside it (Chromium's timing
+  skipped the window; dev builds skipped it too). Player.tsx now holds the capsule (gravity off,
+  glued to the analytic surface) until a downward raycast confirms a collider beneath. If a bug
+  appears only in the native app, reproduce with `npx playwright install webkit` + a headless
+  `webkit.launch()` against `npm run preview` (prod build!) before touching Zig — engine + build
+  mode are the usual suspects, and headless WebKit iterates 10× faster than repackaging.
 
 ## Current verified state (2026-07-09)
 
