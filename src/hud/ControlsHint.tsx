@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { IS_NATIVE } from "@/config/native";
 
 /** Small dismissible controls legend (bottom-left) so players know how to move. */
 export function ControlsHint() {
   const [open, setOpen] = useState(true);
   if (!open) return null;
+  const mouseHint = IS_NATIVE
+    ? "move to look around" // native capture: hover-look, no click needed
+    : "drag (or click to lock) to look around";
   return (
     <div className="absolute bottom-6 left-6 glass rounded-xl px-3 py-2 text-xs text-white/80 max-w-[220px]" data-testid="controls-hint">
       <div className="flex items-center justify-between mb-1">
@@ -13,7 +17,7 @@ export function ControlsHint() {
       </div>
       <div className="space-y-0.5 text-white/70">
         <div><b>WASD</b> / arrows — walk · <b>Shift</b> run · <b>Space</b> jump · <b>Shift+Space</b> super-jump</div>
-        <div><b>Mouse</b> — drag (or click to lock) to look around · <b>Esc</b> free cursor</div>
+        <div><b>Mouse</b> — {mouseHint} · <b>Esc</b> free cursor</div>
         <div><Key>E</Key> enter / exit · <Key>F</Key> fire · <Key>Z</Key> kick · <Key>X</Key> punch</div>
         <div><Key>C</Key> create · <Key>O</Key> objects · <Key>T</Key> time · <Key>L</Key> log · <Key>⌘C</Key> shot</div>
       </div>

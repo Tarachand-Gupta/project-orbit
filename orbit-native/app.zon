@@ -7,7 +7,15 @@
     .icons = .{ "assets/icon.png" },
     .platforms = .{ "macos", "linux" },
     .permissions = .{},
-    .capabilities = .{ "webview" },
+    .capabilities = .{ "webview", "js_bridge" },
+    // Mirrors the dispatcher policy in src/main.zig (the manifest does not auto-propagate):
+    // orbit.warpMouse teleports the OS cursor back to window center for the game's hover
+    // mouse-look (pointer-lock emulation — WKWebView never grants the real API).
+    .bridge = .{
+        .commands = .{
+            .{ .name = "orbit.warpMouse", .origins = .{ "zero://app", "http://127.0.0.1:5191", "zero://inline" } },
+        },
+    },
     .frontend = .{
         // In production the WebView loads the game's built assets copied into frontend/dist
         // (see frontend/package.json — it delegates the real build to the root Orbit game).

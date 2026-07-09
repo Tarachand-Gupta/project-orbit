@@ -56,6 +56,7 @@ src/
                placement.ts — drop objects onto the ground (pure, tested)
                Terrain/River/Roads/Jungle/Buildings/Lighting.tsx — R3F world
   player/      input.ts (key map, tested) · locomotion.ts (move/camera math, tested)
+               mouseCapture.ts — native-shell hover mouse-look (pointer-lock emulation; browsers no-op)
                Player.tsx (capsule controller + follow cam + enter/drive/exit) · Avatar.tsx
   objects/     spec.ts (schema + validation) · specSchema.ts (Zod for the AI SDK)
                generator.ts (offline prompt→spec) · llm.ts (client enrichment call)

@@ -4,6 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { RigidBody, CapsuleCollider, useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { Avatar } from "./Avatar";
 import { pollInput } from "./input";
+import { installMouseCapture } from "./mouseCapture";
 import { inputToMove, cameraOffset, forwardFromYaw, headingFromDir } from "./locomotion";
 import { usePlayerStore } from "@/state/playerStore";
 import { useGameStore } from "@/state/store";
@@ -104,6 +105,9 @@ export function Player({ sampler }: { sampler: GroundSampler }) {
   const spawnY = sampler.heightAt(0, 0) + FOOT_OFFSET + 0.5;
 
   useEffect(() => {
+    // Desktop shell: hover mouse-look via native capture (WKWebView has no Pointer Lock API).
+    // No-op in browsers, where the click-to-lock below keeps working.
+    installMouseCapture();
     const canvas = gl.domElement;
     const onClick = () => {
       if (!usePlayerStore.getState().drivingId) canvas.requestPointerLock?.();

@@ -25,6 +25,8 @@ export interface InputState {
   mouseDY: number;
 }
 
+import { acquireMouseCapture, captureMouseMove, isMouseCaptured } from "./mouseCapture";
+
 export type Action = "forward" | "back" | "left" | "right" | "jump" | "run" | "interact" | "kick" | "punch" | "fire" | null;
 
 /** Map a KeyboardEvent.code/key to a movement action. Pure + tested. */
@@ -122,14 +124,15 @@ function onKeyUp(e: KeyboardEvent) {
 let dragLook = false;
 
 function onMouseDown(e: MouseEvent) {
-  // Left-click fires only when a weapon is equipped + pointer is locked (so it doesn't hijack the
-  // click-to-lock or HUD clicks).
-  if (e.button === 0 && fireOnClick && document.pointerLockElement) fireQueued = true;
-  // Drag-look fallback where the Pointer Lock API is unavailable or denied — WKWebView (the
-  // native macOS shell) never grants it, which left the camera frozen there. Dragging on the 3D
-  // canvas rotates the camera; HUD drags don't (their event target isn't the canvas).
+  // Left-click fires only when a weapon is equipped + look is engaged (pointer lock in browsers,
+  // native capture in the desktop shell) — so it doesn't hijack the click-to-lock or HUD clicks.
+  if (e.button === 0 && fireOnClick && (document.pointerLockElement || isMouseCaptured())) fireQueued = true;
   if (e.button === 0 && !document.pointerLockElement && (e.target as HTMLElement | null)?.tagName === "CANVAS") {
-    dragLook = true;
+    // Native shell: a canvas click re-engages hover mouse-look after an Esc release (no-op in browsers).
+    acquireMouseCapture();
+    // Drag-look fallback where neither the Pointer Lock API nor native capture is available —
+    // dragging on the 3D canvas rotates the camera; HUD drags don't (their target isn't the canvas).
+    if (!isMouseCaptured()) dragLook = true;
   }
 }
 
@@ -138,9 +141,10 @@ function onMouseUp(e: MouseEvent) {
 }
 
 function onMouseMove(e: MouseEvent) {
-  // Rotate when the pointer is locked (immersive look) or during a canvas drag (fallback) —
-  // never on plain HUD mouse movement.
-  if (document.pointerLockElement || dragLook) {
+  // Rotate when the pointer is locked (browser), natively captured (desktop shell hover-look),
+  // or during a canvas drag (last-resort fallback) — never on plain HUD mouse movement.
+  // captureMouseMove also recenters the OS cursor and filters out warp-jump artifacts.
+  if (document.pointerLockElement || dragLook || captureMouseMove(e)) {
     state.mouseDX += e.movementX;
     state.mouseDY += e.movementY;
   }

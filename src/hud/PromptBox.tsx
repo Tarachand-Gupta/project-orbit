@@ -129,6 +129,10 @@ export function PromptBox() {
               // "/" or Escape exits the input back to the game (without typing the slash).
               if (e.key === "Escape" || e.key === "/") {
                 e.preventDefault();
+                // Consumed here — don't let it bubble to the global Esc handler, which would
+                // treat the SAME press as a bare Esc (releasing native mouse capture) because
+                // the prompt is already closed and blurred by the time the event reaches it.
+                e.stopPropagation();
                 togglePrompt(false);
                 (e.target as HTMLInputElement).blur();
               }

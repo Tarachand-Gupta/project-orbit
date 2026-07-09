@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useGameStore } from "@/state/store";
+import { releaseMouseCapture } from "@/player/mouseCapture";
 
 /**
  * Global HUD keyboard shortcuts — mnemonic and chosen NOT to collide with movement/action keys
@@ -47,13 +48,21 @@ export function KeyboardShortcuts() {
           e.preventDefault();
           toggleDebugWindow();
           break;
-        case "Escape":
+        case "Escape": {
           document.exitPointerLock?.();
+          // With panels open, Esc just closes them (native capture resumes by itself). With
+          // nothing open it releases the native mouse capture until the canvas is clicked.
+          const s = useGameStore.getState();
+          if (!s.promptOpen && !s.explorerOpen && !s.clockOpen && !s.debugWindowOpen && s.selectedId === null) {
+            releaseMouseCapture();
+          }
           togglePrompt(false);
           toggleExplorer(false);
           toggleClock(false);
           toggleDebugWindow(false);
+          s.selectObject(null); // close the object controls panel too
           break;
+        }
       }
     };
     window.addEventListener("keydown", onKey);

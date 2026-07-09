@@ -30,9 +30,11 @@ export default defineConfig(({ mode }) => {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   // Pinned, uncommon port with strictPort so the dev server never silently drifts to another
-  // port (which would make the e2e suite test the wrong app).
-  server: { port: 5191, strictPort: true },
-  preview: { port: 5191, strictPort: true },
+  // port (which would make the e2e suite test the wrong app). Host pinned to IPv4: Node can
+  // bind "localhost" as ::1-only, which strands the native shell's dev URL + readiness probe
+  // (http://127.0.0.1:5191) in a 60s timeout.
+  server: { host: "127.0.0.1", port: 5191, strictPort: true },
+  preview: { host: "127.0.0.1", port: 5191, strictPort: true },
   optimizeDeps: {
     // Rapier's wasm-bindgen glue does not play well with esbuild pre-bundling.
     exclude: ["@dimforge/rapier3d-compat"],

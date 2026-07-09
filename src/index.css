@@ -87,6 +87,13 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 
+/* Native shell mouse capture (src/player/mouseCapture.ts): while hover-look is engaged the OS
+   cursor sits recentered mid-window — hide it everywhere, like real pointer lock would. */
+:root[data-mouse-capture],
+:root[data-mouse-capture] * {
+  cursor: none !important;
+}
+
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
 }

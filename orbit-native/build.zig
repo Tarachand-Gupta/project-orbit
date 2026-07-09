@@ -259,6 +259,9 @@ fn linkPlatform(b: *std.Build, target: std.Build.ResolvedTarget, app_mod: *std.B
             app_mod.addFrameworkPath(.{ .cwd_relative = b.pathJoin(&.{ sysroot, "System/Library/Frameworks" }) });
         }
         app_mod.linkFramework("AppKit", .{});
+        // CGWarpMouseCursorPosition / CGAssociateMouseAndMouseCursorPosition (src/main.zig
+        // orbit.warpMouse bridge command — the game's hover mouse-look recentering).
+        app_mod.linkFramework("CoreGraphics", .{});
         app_mod.linkFramework("AVFoundation", .{});
         app_mod.linkFramework("MediaToolbox", .{});
         app_mod.linkFramework("Accelerate", .{});

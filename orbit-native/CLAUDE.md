@@ -101,14 +101,17 @@ Gemini enrichment works in BOTH native modes, via different routes (browser unto
 | Game behavior/UI/rendering | Root `src/` (normal game workflow; native inherits it) |
 | Native-only rendering tweaks | `../src/config/native.ts` flags, consumed by Scene/Lighting/PostFX |
 | Window size/title, permissions, origins, packaging | `app.zon` **and mirror in `src/main.zig`** |
-| Native capabilities (dialogs, more windows, bridge commands) | `src/main.zig` (handlers) + `src/runner.zig` (policy) + `app.zon` (allowlist) — see `native skills get core --full` |
+| Native capabilities (dialogs, more windows, bridge commands) | `src/main.zig` (handlers) + `src/runner.zig` (policy) + `app.zon` (allowlist) — `orbit.warpMouse` in `src/main.zig` is the worked example; see `native skills get core --full` |
 | Build steps | `build.zig` (frontend build/copy is `frontend/package.json`'s `build` script) |
 
 ## Gotchas (hard-won, don't rediscover)
 
 - **Port is 5191, not 5173** (root Vite pins it with `strictPort`). It appears in `app.zon`
   (dev url + allowed_origins) and `src/main.zig` (`dev_origins`). 5173 references from the
-  scaffold are gone — don't reintroduce them.
+  scaffold are gone — don't reintroduce them. Vite's host is pinned to `127.0.0.1` in
+  `vite.config.ts`: Node can bind localhost as ::1-only, and the shell's dev URL + readiness
+  probe use IPv4 — without the pin, `zig build dev` dies with `error: Timeout` while Vite
+  looks perfectly healthy.
 - `zig build test` alone can pass on broken code (Zig lazy analysis) — always pair with `zig build`.
 - `build.zig` hardcodes `default_native_sdk_path` into the global npm install of the CLI; if the
   CLI is updated/moved, pass `-Dnative-sdk-path=...` or regenerate.
@@ -121,9 +124,32 @@ Gemini enrichment works in BOTH native modes, via different routes (browser unto
 - Computer-use `request_access` needs the app running as a **bundled .app** (a bare zig-out
   binary has no stable identity to grant); use bundle id `dev.orbit.project-orbit`.
 - The e2e suite and the native dev shell can't run simultaneously (both want port 5191).
-- **WKWebView never grants the Pointer Lock API.** Mouse-look must not depend on it: the game's
-  `src/player/input.ts` has a drag-look fallback (left-drag on the canvas rotates the camera)
-  that activates whenever `document.pointerLockElement` is null. Don't regress it.
+- **WKWebView never grants the Pointer Lock API.** The native app emulates it instead — "hover
+  mouse-look": no click needed. Three cooperating pieces (all must stay in sync):
+  1. `src/player/mouseCapture.ts` (game): feeds hover mousemove deltas to the camera, hides the
+     cursor (`:root[data-mouse-capture]` in index.css), suspends while HUD panels/selection/text
+     inputs need the real cursor, Esc releases / canvas click recaptures.
+  2. `orbit.warpMouse` bridge command (`src/main.zig` + policy mirrored in `app.zon`): when the
+     cursor drifts outside the central deadzone, JS asks the shell to teleport it back.
+     The shell computes the target ITSELF from its own window bounds (CGWindowListCopyWindowInfo
+     → CGWarpMouseCursorPosition, wrapped in CGAssociateMouseAndMouseCursorPosition 0/1 to skip
+     macOS's post-warp event-suppression). The response carries the target + CG return codes, so
+     `native automate bridge '{"id":"x","command":"orbit.warpMouse","payload":{}}'` (needs
+     `-Dautomation=true`, cwd = orbit-native) is a one-call diagnosis.
+  3. NEVER pass warp coordinates from the page: `MouseEvent.screenX`/`window.screenX` are
+     garbage inside WebKit views (observed −9360,−9680 headless) — CGWarp "succeeds" toward a
+     far-off-screen point and the cursor visibly never moves.
+  Browsers are untouched (real pointer lock + drag-look fallback still work; `installMouseCapture`
+  no-ops without `window.zero`). The JS loop is verifiable headless: mock `window.zero.invoke`
+  in Playwright WebKit against `npm run preview` and assert `orbit.warpMouse` calls + the
+  `data-mouse-capture` attribute through Esc/click/prompt transitions.
+- **Don't test cursor-warping with synthetic absolute-position mouse events** (CGEventPost of
+  kCGEventMouseMoved every ~16 ms): each real warp is clobbered within one tick by the next
+  synthetic event's absolute position, so the capture looks broken when it isn't. Real trackpads
+  are relative — they continue from wherever the warp put the cursor. Drive synthetic drift,
+  STOP, wait ~1 s, then read the cursor position (it settles at window center when healthy).
+  Also note the bridge ACK back to JS takes ~400 ms (warps serialize on it) — irrelevant at
+  human speeds, lethal to tight synthetic loops.
 - **Unhandled key events BEEP in WKWebView.** Any keydown the page doesn't `preventDefault()`
   falls through to AppKit and plays the system reject sound on every press (silent in browsers).
   Game-consumed keys must call `preventDefault()` (see `src/player/input.ts` onKeyDown) — but
@@ -140,9 +166,13 @@ Gemini enrichment works in BOTH native modes, via different routes (browser unto
 
 ## Current verified state (2026-07-09)
 
-- `zig build` clean (7.25 MB binary, WebKit linked) · `zig build test` pass · manifest valid.
+- `zig build` clean (WebKit linked) · `zig build test` pass · manifest valid.
 - `zig build package` produced `orbit-native-0.1.0-macos-Debug.app`; launched; screenshots show
   the world at 60 fps with the refined native path active.
-- Root: typecheck clean, 116/116 vitest, 20/20 Playwright e2e.
-- Not yet done: git remote/push, release signing, standalone-bundle AI bridge (see above),
-  app icon is still the SDK default (`assets/icon.png`).
+- Hover mouse-look verified end to end: JS loop headless in WebKit (warps fire past the
+  deadzone, Esc/click/prompt transitions correct) + real shell warp via
+  `native automate bridge` (cursor lands exactly on the shell-computed window center,
+  all CG return codes 0).
+- Root: typecheck clean, 131/131 vitest, 20/20 Playwright e2e.
+- Not yet done: git remote/push, release signing, app icon is still the SDK default
+  (`assets/icon.png`).
