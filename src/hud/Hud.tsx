@@ -11,6 +11,7 @@ import { ObjectExplorer } from "./ObjectExplorer";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { PerfStats } from "./PerfStats";
 import { Screenshot } from "./Screenshot";
+import { NativeBadge } from "./NativeBadge";
 
 /**
  * Glass-morphism HUD layer (Tech Doc §8). Regions: top-left dev/scale settings, top-center
@@ -27,6 +28,7 @@ export function Hud() {
       <div className="absolute top-6 left-6 flex items-start gap-2">
         <DevPanel />
         <PerfStats />
+        <NativeBadge />
       </div>
 
       {/* top-center: globally-synced clock */}

@@ -18,6 +18,7 @@ import { BurnController } from "@/objects/BurnController";
 import { WeaponTracers } from "@/objects/WeaponTracers";
 import { PostFX } from "./PostFX";
 import { PerfProbe } from "./PerfProbe";
+import { RENDER_DPR } from "@/config/native";
 
 function ObjectsLayer({ sampler }: { sampler: ReturnType<typeof samplerFor> }) {
   const objects = useGameStore((s) => s.objects);
@@ -49,7 +50,7 @@ export function Scene() {
     <Canvas
       // Crisp low-poly polygon look: full resolution + soft shadows + filmic tone mapping.
       shadows="soft"
-      dpr={[1, 2]}
+      dpr={RENDER_DPR}
       // Tone mapping is applied by the PostFX ToneMapping effect, so disable it on the renderer.
       // preserveDrawingBuffer lets the Cmd+C screenshot shortcut read the canvas pixels.
       gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.NoToneMapping, preserveDrawingBuffer: true }}
