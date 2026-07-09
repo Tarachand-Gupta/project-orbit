@@ -97,8 +97,14 @@ function isTyping(): boolean {
 
 function onKeyDown(e: KeyboardEvent) {
   if (isTyping()) return;
+  // Never swallow OS/browser chords (⌘W close-window, ⌘C screenshot, Ctrl+R reload, …).
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   const a = mapKey(e.code);
   if (!a) return;
+  // Mark the event handled. In the native WKWebView shell an unhandled keydown falls through to
+  // AppKit, which plays the system "reject" beep on EVERY press — browsers are silent about
+  // unhandled keys, so this only audibly broke the macOS app. Also stops Space scrolling the page.
+  e.preventDefault();
   if (a === "interact") return void (interactQueued = true);
   if (a === "kick") return void (kickQueued = true);
   if (a === "punch") return void (punchQueued = true);
