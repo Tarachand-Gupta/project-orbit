@@ -118,6 +118,11 @@ key `GEMINI_API_KEY` from repo-root `.env`, server-side only). Therefore:
 - Computer-use `request_access` needs the app running as a **bundled .app** (a bare zig-out
   binary has no stable identity to grant); use bundle id `dev.orbit.project-orbit`.
 - The e2e suite and the native dev shell can't run simultaneously (both want port 5191).
+- **Unhandled key events BEEP in WKWebView.** Any keydown the page doesn't `preventDefault()`
+  falls through to AppKit and plays the system reject sound on every press (silent in browsers).
+  Game-consumed keys must call `preventDefault()` (see `src/player/input.ts` onKeyDown) — but
+  never swallow meta/ctrl/alt chords, or Cmd+W/Cmd+C die. Audio can't be verified headless; ask
+  the user to confirm.
 - **WKWebView ≠ Chromium — test rendering bugs with Playwright's `webkit` engine.** The player
   used to spawn buried to the waist ONLY in the native app: WebKit's slower prod boot let the
   capsule fall into the still-building terrain trimesh and wedge inside it (Chromium's timing
