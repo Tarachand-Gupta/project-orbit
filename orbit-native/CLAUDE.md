@@ -81,15 +81,18 @@ rendering fidelity, or packaging.
 
 ## AI generation & .env (important nuance)
 
-Gemini enrichment is served by the ROOT project's Vite dev middleware (`POST /api/generate`,
-key `GEMINI_API_KEY` from repo-root `.env`, server-side only). Therefore:
-- `zig build dev` / `zig build run` → AI generation **works** (dev middleware present).
-- packaged `.app` standalone → no dev server → enrichment fails gracefully → deterministic
-  **local template objects** (offline-first by design). A "LLM (gemini) error, kept local object"
-  line in the in-game Debug log is this fallback working, NOT a bug.
-- Follow-up if standalone AI is wanted: add a Zig bridge command (`native skills get core`,
-  "Add a native bridge command" recipe) that proxies to Gemini with the same key, and point
-  `src/objects/llm.ts` at `window.zero.invoke(...)` when `IS_NATIVE && !dev`.
+Gemini enrichment works in BOTH native modes, via different routes (browser untouched):
+- `zig build dev` / `zig build run` → the ROOT Vite middleware serves `POST /api/generate`
+  (key from repo-root `.env`, server-side).
+- packaged `.app` → no server behind `zero://app` (fetch("/api/generate") even fails URL-parse
+  with "The string did not match the expected pattern"). `src/objects/llm.ts` falls back to
+  `src/objects/nativeLlm.ts`: a DIRECT client→Gemini REST call using the key that
+  `frontend/write-native-config.mjs` copies from repo `.env` into the bundle's
+  `native-config.json` at package time (gitignored; never in browser builds). Shared prompt +
+  truncation-tolerant JSON recovery live in `src/objects/llmShared.ts` (unit-tested — Gemini
+  REST sometimes stops before the closing brace; `closeJson` balances it).
+- No key in `.env` when packaging → packaged app uses local template objects (offline-first).
+  A "kept local object" Debug-log line in THAT configuration is the designed fallback, not a bug.
 
 ## Adding features — which layer
 
@@ -118,6 +121,9 @@ key `GEMINI_API_KEY` from repo-root `.env`, server-side only). Therefore:
 - Computer-use `request_access` needs the app running as a **bundled .app** (a bare zig-out
   binary has no stable identity to grant); use bundle id `dev.orbit.project-orbit`.
 - The e2e suite and the native dev shell can't run simultaneously (both want port 5191).
+- **WKWebView never grants the Pointer Lock API.** Mouse-look must not depend on it: the game's
+  `src/player/input.ts` has a drag-look fallback (left-drag on the canvas rotates the camera)
+  that activates whenever `document.pointerLockElement` is null. Don't regress it.
 - **Unhandled key events BEEP in WKWebView.** Any keydown the page doesn't `preventDefault()`
   falls through to AppKit and plays the system reject sound on every press (silent in browsers).
   Game-consumed keys must call `preventDefault()` (see `src/player/input.ts` onKeyDown) — but

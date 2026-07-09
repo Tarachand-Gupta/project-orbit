@@ -118,15 +118,29 @@ function onKeyUp(e: KeyboardEvent) {
   state[a] = false; // always clear on key-up (even if typing started mid-press)
 }
 
+/** True while the left button is held down on the 3D canvas without pointer lock (drag-look). */
+let dragLook = false;
+
 function onMouseDown(e: MouseEvent) {
   // Left-click fires only when a weapon is equipped + pointer is locked (so it doesn't hijack the
   // click-to-lock or HUD clicks).
   if (e.button === 0 && fireOnClick && document.pointerLockElement) fireQueued = true;
+  // Drag-look fallback where the Pointer Lock API is unavailable or denied — WKWebView (the
+  // native macOS shell) never grants it, which left the camera frozen there. Dragging on the 3D
+  // canvas rotates the camera; HUD drags don't (their event target isn't the canvas).
+  if (e.button === 0 && !document.pointerLockElement && (e.target as HTMLElement | null)?.tagName === "CANVAS") {
+    dragLook = true;
+  }
+}
+
+function onMouseUp(e: MouseEvent) {
+  if (e.button === 0) dragLook = false;
 }
 
 function onMouseMove(e: MouseEvent) {
-  // Only rotate when pointer is locked (immersive look) — avoids hijacking HUD clicks.
-  if (document.pointerLockElement) {
+  // Rotate when the pointer is locked (immersive look) or during a canvas drag (fallback) —
+  // never on plain HUD mouse movement.
+  if (document.pointerLockElement || dragLook) {
     state.mouseDX += e.movementX;
     state.mouseDY += e.movementY;
   }
@@ -139,11 +153,13 @@ export function installInput(): () => void {
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("mouseup", onMouseUp);
   return () => {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mousedown", onMouseDown);
+    window.removeEventListener("mouseup", onMouseUp);
     installed = false;
   };
 }
@@ -158,6 +174,7 @@ export function resetInput(): void {
   state.interactPressed = state.kickPressed = state.punchPressed = state.firePressed = false;
   state.mouseDX = state.mouseDY = 0;
   interactQueued = kickQueued = punchQueued = fireQueued = false;
+  dragLook = false;
 }
 
 /**

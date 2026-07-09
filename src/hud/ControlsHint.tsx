@@ -13,7 +13,7 @@ export function ControlsHint() {
       </div>
       <div className="space-y-0.5 text-white/70">
         <div><b>WASD</b> / arrows — walk · <b>Shift</b> run · <b>Space</b> jump · <b>Shift+Space</b> super-jump</div>
-        <div><b>Mouse</b> (click to lock) — look up/down/around · <b>Esc</b> free cursor</div>
+        <div><b>Mouse</b> — drag (or click to lock) to look around · <b>Esc</b> free cursor</div>
         <div><Key>E</Key> enter / exit · <Key>F</Key> fire · <Key>Z</Key> kick · <Key>X</Key> punch</div>
         <div><Key>C</Key> create · <Key>O</Key> objects · <Key>T</Key> time · <Key>L</Key> log · <Key>⌘C</Key> shot</div>
       </div>

@@ -45,9 +45,13 @@ zig build package -Doptimize=ReleaseFast
 
 ## AI object generation & `.env`
 
-The game's AI enrichment (Gemini) is served by the root project's Vite dev middleware, which reads
-`GEMINI_API_KEY` from the repo-root `.env` (server-side, never bundled). So **AI generation is live
-in `zig build dev` / `zig build run`**. In a fully self-contained packaged `.app` there is no dev
-server, so object generation gracefully falls back to the deterministic local template engine
-(the game is offline-first by design). Wiring a native Zig bridge that proxies to Gemini using the
-same key is the follow-up if AI enrichment is wanted in the standalone bundle.
+AI enrichment (Gemini) works in BOTH modes, via different routes:
+
+- **Dev** (`zig build dev` / `zig build run`): the root Vite middleware proxies `/api/generate`
+  with `GEMINI_API_KEY` from the repo-root `.env` (key stays server-side).
+- **Packaged `.app`**: there is no server behind `zero://app`, so the packaging step
+  (`frontend/write-native-config.mjs`, run by the frontend `build` script) copies the key from
+  the repo `.env` into `native-config.json` inside the bundle, and the game calls Gemini's REST
+  API directly (`src/objects/nativeLlm.ts`). The key lives only in your local `.app` — `dist/`
+  is gitignored and browser deployments never run that script. No key in `.env` at package time
+  simply means the packaged app uses local template objects (offline-first still holds).

@@ -6,6 +6,6 @@
   "description": "Thin shim: the native shell's WebView content IS the root Project Orbit game. dev/build delegate to the root game (../..) so there is one source of truth and one git repo.",
   "scripts": {
     "dev": "npm --prefix ../.. run dev",
-    "build": "npm --prefix ../.. run build && rm -rf dist && cp -R ../../dist dist"
+    "build": "npm --prefix ../.. run build && rm -rf dist && cp -R ../../dist dist && node write-native-config.mjs"
   }
 }

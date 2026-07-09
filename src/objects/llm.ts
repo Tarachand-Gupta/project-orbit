@@ -8,6 +8,8 @@
 import { validateSpec, type ObjectSpec } from "./spec";
 import { logError } from "@/state/debugStore";
 import { useGameStore } from "@/state/store";
+import { IS_NATIVE } from "@/config/native";
+import { nativeGenerate } from "./nativeLlm";
 
 export type Provider = "local" | "gemini" | "kimi" | "deepseek";
 
@@ -35,26 +37,39 @@ export async function enrichWithLLM(
 ): Promise<ObjectSpec | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const userKey = useGameStore.getState().apiKeys[provider] || undefined;
   try {
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, provider, id, apiKey: useGameStore.getState().apiKeys[provider] || undefined }),
-      signal: controller.signal,
-    });
-    const data = (await res.json()) as ProxyResponse;
-    if (!res.ok || !data.spec) {
+    // Primary path: the server proxy (Vite dev middleware / serverless fn — keys stay off the
+    // client). In the packaged native app there is no server behind zero://app, so this throws
+    // or 404s; the native direct-Gemini path below takes over with the locally-bundled key.
+    let raw: Partial<ObjectSpec> | null = null;
+    let proxyError: string | null = null;
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, provider, id, apiKey: userKey }),
+        signal: controller.signal,
+      });
+      const data = (await res.json()) as ProxyResponse;
+      if (!res.ok || !data.spec) proxyError = `${data.error ?? res.status}`;
+      else raw = data.spec as Partial<ObjectSpec>;
+    } catch (proxyErr) {
+      if ((proxyErr as Error).name === "AbortError") throw proxyErr; // real timeout — don't retry
+      proxyError = (proxyErr as Error).message;
+    }
+    if (!raw && IS_NATIVE) {
+      raw = await nativeGenerate(prompt, id, provider, controller.signal, userKey);
+    } else if (!raw) {
       logError({
         objectId: id,
         prompt,
         phase: "generate",
         level: "warn",
-        message: `LLM (${provider}) unavailable, kept local object: ${data.error ?? res.status}`,
+        message: `LLM (${provider}) unavailable, kept local object: ${proxyError}`,
       });
       return null;
     }
-
-    const raw = data.spec as Partial<ObjectSpec>;
     const candidate: ObjectSpec = {
       ...(raw as ObjectSpec),
       id,
