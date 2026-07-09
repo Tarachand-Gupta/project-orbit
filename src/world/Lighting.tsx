@@ -5,6 +5,7 @@ import { Stars } from "@react-three/drei";
 import { sunState } from "@/time/clock";
 import type { WorldConfig } from "@/config/world";
 import { usePlayerStore } from "@/state/playerStore";
+import { SHADOW_MAP_SIZE } from "@/config/native";
 
 const NIGHT_SKY = new THREE.Color("#0a1124");
 const DAWN_SKY = new THREE.Color("#e8915c");
@@ -71,8 +72,8 @@ export function Lighting({ world }: { world: WorldConfig }) {
         castShadow
         intensity={1.2}
         target={targetRef.current ?? undefined}
-        shadow-mapSize-width={1536}
-        shadow-mapSize-height={1536}
+        shadow-mapSize-width={SHADOW_MAP_SIZE}
+        shadow-mapSize-height={SHADOW_MAP_SIZE}
         shadow-camera-near={1}
         shadow-camera-far={world.size * 3}
         shadow-camera-left={-shadowSpan}

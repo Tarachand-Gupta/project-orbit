@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { EffectComposer, Bloom, Vignette, SMAA, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
+import { BLOOM_INTENSITY } from "@/config/native";
 
 /**
  * Cinematic post-processing to match the reference low-poly art: crisp SMAA edges, a soft sun
@@ -13,7 +14,7 @@ export function PostFX() {
     <PostFXBoundary>
       <EffectComposer multisampling={0} enableNormalPass={false}>
         <SMAA />
-        <Bloom intensity={0.55} luminanceThreshold={0.7} luminanceSmoothing={0.3} mipmapBlur radius={0.7} />
+        <Bloom intensity={BLOOM_INTENSITY} luminanceThreshold={0.7} luminanceSmoothing={0.3} mipmapBlur radius={0.7} />
         <Vignette eskil={false} offset={0.25} darkness={0.5} />
         <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       </EffectComposer>

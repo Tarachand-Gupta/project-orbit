@@ -4,6 +4,8 @@ import App from "./App";
 import "./index.css";
 import { installGameApi } from "./api/gameApi";
 import { installTestHooks } from "./api/testHooks";
+// Detect the Native SDK shell and bump rendering fidelity (side-effecting import).
+import "./config/native";
 
 // Expose the typed game API on window for users & agents (Tech Doc §5.1, §7).
 installGameApi();

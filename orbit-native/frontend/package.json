@@ -1,0 +1,11 @@
+{
+  "name": "orbit-native-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Thin shim: the native shell's WebView content IS the root Project Orbit game. dev/build delegate to the root game (../..) so there is one source of truth and one git repo.",
+  "scripts": {
+    "dev": "npm --prefix ../.. run dev",
+    "build": "npm --prefix ../.. run build && rm -rf dist && cp -R ../../dist dist"
+  }
+}
