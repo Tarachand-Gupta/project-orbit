@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateSpec, extractSubject } from "./generator";
+import { generateSpec, extractSubject, suggestTemplates } from "./generator";
 import { validateSpec, interactionFor } from "./spec";
 
 describe("extractSubject", () => {
@@ -116,5 +116,38 @@ describe("interactionFor", () => {
   });
   it("prefers an explicit interaction spec", () => {
     expect(interactionFor({ ...base, type: "rock", interaction: { mode: "ride" } }).mode).toBe("ride");
+  });
+});
+
+describe("suggestTemplates (prompt typeahead)", () => {
+  it("matches known keywords as the user types, best match first", () => {
+    const s = suggestTemplates("create a supercar");
+    expect(s[0]).toEqual({ name: "supercar", keyword: "supercar" });
+  });
+
+  it("matches partial words (prefix)", () => {
+    const names = suggestTemplates("heli").map((s) => s.name);
+    expect(names).toContain("helicopter");
+  });
+
+  it("strips create/make/spawn prefixes before matching", () => {
+    expect(suggestTemplates("spawn a tank")[0]?.name).toBe("supercar"); // tank is a supercar-template key
+  });
+
+  it("still suggests when the text extends past a keyword", () => {
+    const names = suggestTemplates("car with rockets").map((s) => s.name);
+    expect(names).toContain("supercar");
+  });
+
+  it("offers one chip per template and respects the limit", () => {
+    const s = suggestTemplates("b", 5);
+    expect(s.length).toBeLessThanOrEqual(5);
+    expect(new Set(s.map((x) => x.name)).size).toBe(s.length);
+  });
+
+  it("returns nothing for empty or unknown text", () => {
+    expect(suggestTemplates("")).toEqual([]);
+    expect(suggestTemplates("create a")).toEqual([]);
+    expect(suggestTemplates("zzglorbax")).toEqual([]);
   });
 });

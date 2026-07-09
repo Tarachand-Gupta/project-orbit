@@ -84,6 +84,19 @@ test.describe("Project Orbit — walkable world", () => {
     expect(errors, `console errors:\n${errors.join("\n")}`).toEqual([]);
   });
 
+  test("typeahead: typing a known object shows a suggestion that spawns it instantly", async ({ page }) => {
+    await boot(page);
+    await page.getByTestId("prompt-toggle").click();
+    await page.getByTestId("prompt-input").fill("heli");
+
+    // A known-template chip appears while typing; clicking it spawns exactly one object, instantly.
+    await page.getByTestId("prompt-suggestion-helicopter").click();
+    await expect(page.getByTestId("prompt-hint")).toContainText(/Spawned/i, { timeout: 5000 });
+    const list = await page.evaluate(() => window.game.list().map((o) => o.label));
+    expect(list, "suggestion pick = exactly one object").toHaveLength(1);
+    expect(list[0].toLowerCase()).toContain("helicopter");
+  });
+
   test("a fast double-click on Create still spawns only one object", async ({ page }) => {
     await boot(page);
     await page.getByTestId("prompt-toggle").click();

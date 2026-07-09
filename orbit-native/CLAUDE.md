@@ -93,6 +93,9 @@ Gemini enrichment works in BOTH native modes, via different routes (browser unto
   REST sometimes stops before the closing brace; `closeJson` balances it).
 - No key in `.env` when packaging → packaged app uses local template objects (offline-first).
   A "kept local object" Debug-log line in THAT configuration is the designed fallback, not a bug.
+- Spawn UX (root CLAUDE.md "Object generation"): typeahead template picks spawn instantly;
+  cloud Create spawns NOTHING until the model answers, then exactly one object (local template
+  only as the failure fallback). There is no enrich-in-place morph anymore.
 
 ## Adding features — which layer
 

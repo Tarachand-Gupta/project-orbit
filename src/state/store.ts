@@ -207,7 +207,9 @@ export const useGameStore = create<GameState>((set) => ({
       return { pendingGen };
     }),
 
-  reset: () => set({ objects: {}, order: [], selectedId: null }),
+  // pendingGen clears too: it doubles as the cancellation token for in-flight AI generations
+  // (spawn.ts drops a late model result whose pending entry is gone).
+  reset: () => set({ objects: {}, order: [], selectedId: null, pendingGen: {} }),
   hydrate: (objects) =>
     set(() => {
       const map: Record<string, SpawnedObject> = {};

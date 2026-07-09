@@ -27,13 +27,22 @@ React 18 + TypeScript + Vite · Three.js + React Three Fiber + drei · Rapier ph
 (`idb`). **AI generation: Vercel AI SDK** (`ai` + `@ai-sdk/google` + `@ai-sdk/openai-compatible`
 + `zod`). Unit tests: Vitest. E2E: Playwright (headless Chromium + SwiftShader WebGL).
 
-## Object generation (offline-first, AI-enriched)
+## Object generation (typeahead-first, single spawn)
 
-1. A prompt → **instant local object** via the deterministic template engine
-   (`src/objects/generator.ts`). This always succeeds — core mechanics never depend on a model.
-2. If a cloud provider is selected, `src/objects/spawn.ts` fires an **async enrichment** through
-   the server proxy and swaps in a richer, schema-validated spec via `store.replaceSpec`. Never
-   blocks; on any failure the local object stays.
+1. **Typeahead**: as the user types in the prompt box, `suggestTemplates` (generator.ts) offers
+   known-template chips ("heli" → ⚡Helicopter); picking one (click or ↑/↓+Enter) spawns that
+   deterministic template **instantly** — no AI round-trip.
+2. **Create with a cloud provider**: NOTHING spawns until the model answers. The
+   GenerationIndicator shows progress; on success exactly ONE object (the enriched spec) is
+   placed; on failure the deterministic local object spawns instead (offline-first as the
+   fallback, not the first paint). Duplicate submits of the same prompt while one is pending
+   are rejected (`inFlight` map in spawn.ts + a 700 ms double-fire guard in PromptBox).
+3. **Local provider**: prompt → instant template/generic object, as always.
+
+Never re-introduce the old "spawn local now, `replaceSpec` it ~10s later" morph: the mid-ride
+spec swap read as a duplicated object and could rebuild the physics body under the player.
+`store.replaceSpec` still exists but nothing in the spawn path calls it. Clearing the world
+cancels in-flight generations (`pendingGen` doubles as the cancellation token).
 
 Providers (keys in `.env`, server-side only — never bundled):
 - **Gemini 3.5 Flash** (`gemini`) — `generateObject` + Zod schema, reliable. **Default.**

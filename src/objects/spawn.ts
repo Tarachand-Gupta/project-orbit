@@ -42,9 +42,18 @@ export interface SpawnResult {
   id?: string;
   label?: string;
   source?: "template" | "generic";
-  /** True when an AI model is generating and the object will appear after a short delay. */
+  /** True when an AI model is generating and the object will appear once it's done. */
   pending?: boolean;
   error?: string;
+}
+
+export interface SpawnOptions {
+  /**
+   * Spawn the deterministic local template/generic object immediately, skipping AI generation
+   * even when a cloud provider is selected. Used by the prompt box's typeahead suggestions —
+   * picking a known object should be instant.
+   */
+  forceLocal?: boolean;
 }
 
 /** Drop height (~5 feet) so spawned objects fall gently to the ground instead of popping in. */
@@ -85,11 +94,23 @@ function placeAndAdd(spec: ObjectSpecLike, world: WorldConfig): void {
 
 type ObjectSpecLike = SpawnedObject["spec"];
 
+// Normalized prompts with a generation already in flight — a second Create with the same text
+// while the model works must NOT queue a second object (the "no duplicates" rule).
+const inFlight = new Map<string, string>(); // normalized prompt → object id
+
 /**
  * Generate and place an object from a natural-language prompt.
+ *
+ * Local provider (and typeahead template picks): the deterministic object appears instantly.
+ * Cloud provider: NOTHING spawns until the model answers — the GenerationIndicator shows
+ * progress, then exactly ONE object (the enriched spec) is placed. The local template is used
+ * only as the failure fallback. This deliberately replaced the old "spawn local now, morph it
+ * in place ~10s later" flow: the mid-ride spec swap read as a duplicate object (and could
+ * teleport the body you were driving).
+ *
  * @param prompt the user/agent text
  */
-export function spawnFromPrompt(prompt: string): SpawnResult {
+export function spawnFromPrompt(prompt: string, opts: SpawnOptions = {}): SpawnResult {
   const trimmed = prompt.trim();
   if (!trimmed) return { ok: false, error: "empty prompt" };
 
@@ -117,31 +138,46 @@ export function spawnFromPrompt(prompt: string): SpawnResult {
 
     const provider = useGameStore.getState().provider;
 
-    // Offline-first (CLAUDE.md / Tech Doc §4.1): ALWAYS place the deterministic local object
-    // immediately so the user sees exactly one object the instant they hit Create. This is the fix
-    // for the "double spawn" — previously AI mode showed nothing for ~10s, so users hit Create
-    // again and got two overlapping objects. The model only ever *upgrades* fidelity in place.
-    placeAndAdd(spec, world);
-
-    if (provider === "local") {
+    if (provider === "local" || opts.forceLocal) {
+      placeAndAdd(spec, world);
       return { ok: true, id, label: spec.label, source };
     }
 
-    // AI mode: enrich asynchronously and swap the richer spec in place (same id + transform) via
-    // replaceSpec. Never adds a second object; on any failure the local object simply stays.
+    const normalized = trimmed.toLowerCase().replace(/\s+/g, " ");
+    if (inFlight.has(normalized)) {
+      return { ok: false, id: inFlight.get(normalized), label: spec.label, error: "already generating" };
+    }
+    inFlight.set(normalized, id);
+
+    // AI mode: generate first, spawn once. The pendingGen entry doubles as the cancellation
+    // token — clearing/resetting the world empties it, and then the late result is dropped.
     useGameStore.getState().startGenerating(id, spec.label);
-    // Guard against a cleared/removed world while the model worked (don't resurrect the object).
-    const stillWanted = () => id in useGameStore.getState().objects;
+    const cancelled = () => !(id in useGameStore.getState().pendingGen);
     void enrichWithLLM(trimmed, id, provider, spec.label)
       .then((enriched) => {
-        if (enriched && stillWanted()) {
-          useGameStore.getState().replaceSpec(id, ensureRotors(groundSpec(enriched)));
+        if (cancelled()) return;
+        if (enriched) {
+          placeAndAdd(ensureRotors(groundSpec(enriched)), useGameStore.getState().world);
+        } else {
+          // Model failed/timed out — offline-first: the deterministic local object still appears.
+          placeAndAdd(spec, useGameStore.getState().world);
+          logError({
+            objectId: id,
+            prompt: trimmed,
+            phase: "generate",
+            level: "info",
+            message: `AI generation unavailable — spawned the local ${source} object instead`,
+          });
         }
       })
       .catch(() => {
-        /* enrichWithLLM never throws (returns null) — local object already placed. */
+        // enrichWithLLM never throws (returns null) — but never strand the pending entry.
+        if (!cancelled()) placeAndAdd(spec, useGameStore.getState().world);
       })
-      .finally(() => useGameStore.getState().finishGenerating(id));
+      .finally(() => {
+        inFlight.delete(normalized);
+        useGameStore.getState().finishGenerating(id);
+      });
 
     return { ok: true, id, label: spec.label, source, pending: true };
   } catch (err) {

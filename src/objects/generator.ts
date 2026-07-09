@@ -511,6 +511,49 @@ const TEMPLATE_MATCHERS = TEMPLATES.map((t) => ({
   res: t.keys.map((k) => new RegExp(`\\b${escapeRegExp(k)}\\b`, "i")),
 }));
 
+export interface TemplateSuggestion {
+  /** Internal template name (e.g. "supercar"). */
+  name: string;
+  /** The keyword to surface/spawn (e.g. "police car"). */
+  keyword: string;
+}
+
+/**
+ * Typeahead for the prompt box: known template keywords matching the partially-typed text,
+ * best match first (exact > prefix > text-extends-keyword > substring). Selecting one spawns
+ * that template instantly with no AI round-trip. Pure + tested.
+ */
+export function suggestTemplates(text: string, limit = 5): TemplateSuggestion[] {
+  const subject = extractSubject(text).toLowerCase().trim();
+  if (subject.length < 2) return [];
+  const candidates: Array<TemplateSuggestion & { score: number }> = [];
+  for (const t of TEMPLATES) {
+    for (const k of t.keys) {
+      let score = -1;
+      if (k === subject) score = 0;
+      else if (k.startsWith(subject)) score = 1;
+      else if (subject.startsWith(`${k} `)) score = 2; // typed past it ("car with wings")
+      else if (k.includes(subject)) score = 3;
+      if (score >= 0) candidates.push({ name: t.name, keyword: k, score });
+    }
+  }
+  candidates.sort((a, b) => a.score - b.score || a.keyword.length - b.keyword.length);
+  const out: TemplateSuggestion[] = [];
+  const seenNames = new Set<string>();
+  for (const c of candidates) {
+    if (seenNames.has(c.name)) continue; // one chip per template
+    seenNames.add(c.name);
+    // Display/spawn the full completion, not the typed fragment: "heli" should offer
+    // "helicopter" (the longest exact-or-prefix keyword of this template), so the spawned
+    // object is labeled properly. Substring matches keep the keyword that matched.
+    const completions = candidates.filter((x) => x.name === c.name && x.score <= 1);
+    const keyword = completions.reduce((best, x) => (x.keyword.length > best.length ? x.keyword : best), c.keyword);
+    out.push({ name: c.name, keyword });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /** Strip a leading "create/make/spawn/build a/an" so the label reads cleanly. */
 export function extractSubject(prompt: string): string {
   return prompt

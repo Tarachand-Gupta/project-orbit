@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { Settings, Sparkles, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Settings, Sparkles, X, Zap } from "lucide-react";
 import { useGameStore } from "@/state/store";
 import { spawnFromPrompt } from "@/objects/spawn";
+import { suggestTemplates } from "@/objects/generator";
 import type { Provider } from "@/objects/llm";
 
-const SUGGESTIONS = ["a supercar", "the Taj Mahal", "a racing track", "an oak tree", "a campfire", "a robot"];
+const EXAMPLES = ["a supercar", "the Taj Mahal", "a racing track", "an oak tree", "a campfire", "a robot"];
 
 const PROVIDERS: Array<{ id: Provider; label: string; needsKey: boolean }> = [
   { id: "local", label: "Local (offline)", needsKey: false },
@@ -12,6 +13,10 @@ const PROVIDERS: Array<{ id: Provider; label: string; needsKey: boolean }> = [
   { id: "kimi", label: "Kimi k2.6", needsKey: true },
   { id: "deepseek", label: "DeepSeek v4 Pro", needsKey: true },
 ];
+
+function titleCaseKeyword(s: string): string {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 /** Provider + bring-your-own-API-key settings, shown from the gear on the Create bar. */
 function PromptSettings({ onClose }: { onClose: () => void }) {
@@ -68,14 +73,33 @@ export function PromptBox() {
   const [value, setValue] = useState("");
   const [hint, setHint] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Typeahead: index into `suggestions` selected with ↑/↓ (−1 = none, Enter submits the text).
+  const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const provider = useGameStore((s) => s.provider);
+
+  // Known-object matches for what's typed so far. Selecting one spawns that template instantly —
+  // no AI round-trip; plain Create sends the full text to the model (when a provider is set).
+  const suggestions = useMemo(() => suggestTemplates(value), [value]);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+  useEffect(() => setSelectedSuggestion(-1), [value]);
 
   const lastSubmit = useRef<{ prompt: string; at: number }>({ prompt: "", at: 0 });
+
+  const showHint = (text: string) => {
+    setHint(text);
+    window.setTimeout(() => setHint(null), 2600);
+  };
+
+  /** Spawn a typeahead pick: the deterministic template, instantly, exactly one object. */
+  const spawnSuggestion = (keyword: string) => {
+    const res = spawnFromPrompt(keyword, { forceLocal: true });
+    showHint(res.ok ? `Spawned “${res.label}”` : `Couldn’t create that — see errors ▲`);
+    if (res.ok) setValue("");
+  };
 
   const submit = () => {
     const prompt = value.trim();
@@ -88,15 +112,16 @@ export function PromptBox() {
 
     const res = spawnFromPrompt(prompt);
     if (res.ok && res.pending) {
-      setHint(`Spawned “${res.label}” — enriching with AI…`);
+      showHint(`Generating “${res.label}”… it will appear when ready`);
       setValue("");
     } else if (res.ok) {
-      setHint(`Spawned “${res.label}”`);
+      showHint(`Spawned “${res.label}”`);
       setValue("");
+    } else if (res.error === "already generating") {
+      showHint(`Already generating “${res.label}” — hang on…`);
     } else {
-      setHint(`Couldn’t create that — see errors ▲`);
+      showHint(`Couldn’t create that — see errors ▲`);
     }
-    window.setTimeout(() => setHint(null), 2600);
   };
 
   return (
@@ -125,7 +150,20 @@ export function PromptBox() {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") submit();
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                if (suggestions.length > 0) {
+                  e.preventDefault();
+                  const dir = e.key === "ArrowDown" ? 1 : -1;
+                  // Cycle through −1 (free text) and each suggestion.
+                  setSelectedSuggestion((i) => ((i + 1 + dir + (suggestions.length + 1)) % (suggestions.length + 1)) - 1);
+                }
+                return;
+              }
+              if (e.key === "Enter") {
+                const picked = suggestions[selectedSuggestion];
+                if (picked) spawnSuggestion(picked.keyword);
+                else submit();
+              }
               // "/" or Escape exits the input back to the game (without typing the slash).
               if (e.key === "Escape" || e.key === "/") {
                 e.preventDefault();
@@ -169,9 +207,31 @@ export function PromptBox() {
         </button>
       )}
 
-      {open && (
+      {open && suggestions.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 justify-center max-w-[560px]" data-testid="prompt-suggestions">
+          {suggestions.map((s, i) => (
+            <button
+              key={s.name}
+              // The input keeps focus (and the ↑/↓ selection) — spawn on mousedown-driven click.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => spawnSuggestion(s.keyword)}
+              className={`glass glass-btn rounded-full pl-2 pr-3 py-1 text-xs flex items-center gap-1 ${
+                i === selectedSuggestion ? "glass-strong text-white" : "text-white/80"
+              }`}
+              data-testid={`prompt-suggestion-${s.name}`}
+              title="Known object — spawns instantly"
+            >
+              <Zap size={11} className="text-amber-300" />
+              {titleCaseKeyword(s.keyword)}
+            </button>
+          ))}
+          <span className="text-[10px] text-white/45 self-center">↑↓ pick · Enter spawns instantly · or press Create to generate</span>
+        </div>
+      )}
+
+      {open && suggestions.length === 0 && (
         <div className="flex flex-wrap gap-1.5 justify-center max-w-[560px]">
-          {SUGGESTIONS.map((s) => (
+          {EXAMPLES.map((s) => (
             <button
               key={s}
               onClick={() => {
