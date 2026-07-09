@@ -10,6 +10,10 @@ settlement of buildings, and a winding river. You spawn physics-enabled objects 
 language ("create a supercar", "create the Taj Mahal"); if you create a **car you can get in (E)
 and drive it** over the terrain. Glass-morphism HUD, real-world-synced day/night.
 
+The game also ships as a **native macOS desktop app** — see `orbit-native/` (a Vercel Native SDK
+package in this same repo; it renders THIS game in a WKWebView shell). Read
+**`orbit-native/CLAUDE.md`** before touching anything native.
+
 > Note: the original PRD described a spherical *planet*. Per later direction this pivoted to a
 > **flat, walkable third-person world** (jungle/roads/buildings/river) with proper grounded
 > physics. The PRD/Tech-Doc in `prd-and-docs/` still describe the globe — treat them as the
@@ -45,6 +49,8 @@ stay server-side). For production this middleware must move to a serverless func
 ```
 src/
   config/      world.ts (flat-world scale, glass, pixelScale, timezone), physics.ts
+               native.ts — detects the native macOS shell (?native=1 / zero:// origin) and bumps
+               rendering fidelity (retina DPR, 2048 shadow map, richer bloom); browser untouched
   time/        clock.ts — synced day/night sun math + dev time-of-day override (pure, tested)
   world/       ground.ts   — terrain height, river carve, biome color, seeded noise (pure, tested)
                placement.ts — drop objects onto the ground (pure, tested)
@@ -94,6 +100,12 @@ After implementing any feature, verify before moving on:
    controls, errors, persistence). Add an assertion for new user-facing features.
 
 `npm run test:all` runs both.
+
+For the **native macOS app**, additionally run from `orbit-native/`: `zig build test` and
+`native validate app.zon`; full instructions (build, launch, package, GUI verification) live in
+`orbit-native/CLAUDE.md`. Changing game code that the native shell touches (`src/config/native.ts`,
+anything DPR/shadow/postFX related) means re-verifying BOTH paths — the e2e suite covers the
+browser path only.
 
 ### Gotchas (don't trip on these)
 - Dev server is **pinned to port 5191 with `strictPort`** (5173 is used by another local app).
