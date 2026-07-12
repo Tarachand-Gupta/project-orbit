@@ -18,8 +18,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { generateObject, generateText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { LlmSpecSchema, toObjectSpec, type LlmSpec } from "../objects/specSchema";
-import { SYSTEM, RAW_JSON_HINT, extractJson, coerceLlmSpec } from "../objects/llmShared";
+// .js extensions on relative imports are load-bearing for the Vercel function (api/generate.ts):
+// its compiled ESM output resolves specifiers verbatim at runtime. Vite/vitest map .js -> .ts.
+import { LlmSpecSchema, toObjectSpec, type LlmSpec } from "../objects/specSchema.js";
+import { SYSTEM, RAW_JSON_HINT, extractJson, coerceLlmSpec } from "../objects/llmShared.js";
 
 export type Provider = "gemini" | "kimi" | "deepseek";
 

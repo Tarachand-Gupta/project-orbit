@@ -40,6 +40,10 @@ npm run test:e2e    # Playwright — add an assertion for new user-facing featur
 The e2e suite uses the `local` provider and a fixed time of day so it's fast, free, and
 deterministic — never make a test hit a real LLM API.
 
+Tests tagged `@motion` assert real-time physics (driving speeds, walk distances) and only run
+reliably on real hardware — CI skips them (GitHub's shared runners can't hold real-time
+simulation under software WebGL), so **run the full suite locally before opening a PR**.
+
 ## Conventions (the short version)
 
 - **Pure logic stays out of React.** Generation, physics math, placement, input mapping live in

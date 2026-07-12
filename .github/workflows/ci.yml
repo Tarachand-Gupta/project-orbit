@@ -21,7 +21,10 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: E2E (headless WebGL via SwiftShader)
-        run: npm run test:e2e
+        # "@motion" tests assert simulated distances/velocities in wall-clock time; GitHub's
+        # 2-core runners + software WebGL can't hold real-time physics, so they flake there.
+        # They still run in the full local suite (npm run test:e2e) — see CONTRIBUTING.md.
+        run: npx playwright test --grep-invert "@motion"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

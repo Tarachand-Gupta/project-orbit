@@ -151,7 +151,7 @@ test.describe("Project Orbit — walkable world", () => {
     await expect(page.getByTestId("controls-panel")).toBeHidden();
   });
 
-  test("the player is blocked by a solid object (no clipping through)", async ({ page }) => {
+  test("the player is blocked by a solid object (no clipping through) @motion", async ({ page }) => {
     await boot(page);
     // A big solid house drops directly in front of the player.
     const house = await page.evaluate(() => {
@@ -185,7 +185,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(minDist, `closest approach ${minDist.toFixed(1)} (wall blocks entry)`).toBeGreaterThan(1.8);
   });
 
-  test("a flown helicopter cannot sink below the solid ground", async ({ page }) => {
+  test("a flown helicopter cannot sink below the solid ground @motion", async ({ page }) => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create a helicopter").id!);
     await page.waitForTimeout(1400);
@@ -214,7 +214,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(lastBelow, `settled below-ground = ${lastBelow.toFixed(2)}`).toBeLessThan(1.2);
   });
 
-  test("player can walk with WASD", async ({ page }) => {
+  test("player can walk with WASD @motion", async ({ page }) => {
     await boot(page);
     const before = await page.evaluate(() => window.__orbitTest!.playerPos());
     // Hold W (forward) for a bit.
@@ -228,7 +228,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(moved, `player moved ${moved.toFixed(2)} units`).toBeGreaterThan(1.0);
   });
 
-  test("player can enter and drive a created car", async ({ page }) => {
+  test("player can enter and drive a created car @motion", async ({ page }) => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create a sports car").id!);
     await page.waitForTimeout(1600); // let the body drop, register & settle before entering
@@ -250,7 +250,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(moved, `car moved ${moved.toFixed(2)} units`).toBeGreaterThan(1.5);
   });
 
-  test("player can enter and fly a created plane", async ({ page }) => {
+  test("player can enter and fly a created plane @motion", async ({ page }) => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create an airplane").id!);
     await page.waitForTimeout(1600);
@@ -320,7 +320,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(count).toBeGreaterThanOrEqual(2);
   });
 
-  test("the controls panel actually changes how a vehicle drives (top speed)", async ({ page }) => {
+  test("the controls panel actually changes how a vehicle drives (top speed) @motion", async ({ page }) => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create a motorbike").id!);
     await page.waitForTimeout(1400);
@@ -356,7 +356,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(speedFast, `fast=${speedFast.toFixed(1)} m/s slow=${speedSlow.toFixed(1)} m/s`).toBeGreaterThan(speedSlow * 1.6);
   });
 
-  test("a car drives stably: accelerates grounded + upright, steers, and reverses", async ({ page }) => {
+  test("a car drives stably: accelerates grounded + upright, steers, and reverses @motion", async ({ page }) => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create a supercar").id!);
     await page.waitForTimeout(1500);
@@ -401,7 +401,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(moved, `moved ${moved.toFixed(1)}`).toBeGreaterThan(2);
   });
 
-  test("steering changes a driving car's heading", async ({ page }) => {
+  test("steering changes a driving car's heading @motion", async ({ page }) => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create a supercar").id!);
     await page.waitForTimeout(1500);
@@ -421,7 +421,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(turned, `heading changed by ${(turned * 57.3).toFixed(0)}°`).toBeGreaterThan(0.15);
   });
 
-  test("a helicopter flies, and its rotor-speed control gates lift", async ({ page }) => {
+  test("a helicopter flies, and its rotor-speed control gates lift @motion", async ({ page }) => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create a helicopter").id!);
     await page.waitForTimeout(1400);
@@ -462,7 +462,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(liftOff, `climb rate, rotor stopped = ${liftOff.toFixed(2)}`).toBeLessThan(2);
   });
 
-  test("a broadly-named vehicle (buggy) is drivable end to end", async ({ page }) => {
+  test("a broadly-named vehicle (buggy) is drivable end to end @motion", async ({ page }) => {
     await boot(page);
     const id = await page.evaluate(() => window.game.spawn("create a dune buggy").id!);
     await page.waitForTimeout(1400);
@@ -485,7 +485,7 @@ test.describe("Project Orbit — walkable world", () => {
     expect(peakSpeed, `buggy reached ${peakSpeed.toFixed(2)} m/s`).toBeGreaterThan(2);
   });
 
-  test("a spawned gun is wieldable and fires to knock a target back", async ({ page }) => {
+  test("a spawned gun is wieldable and fires to knock a target back @motion", async ({ page }) => {
     await boot(page);
     // A light crate target sits in front of the player; a gun is spawned to wield.
     const ids = await page.evaluate(() => {

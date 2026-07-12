@@ -6,7 +6,7 @@
  * Keep this file free of Node imports — it must bundle for the browser.
  */
 
-import { LlmSpecSchema, type LlmSpec } from "./specSchema";
+import { LlmSpecSchema, type LlmSpec } from "./specSchema.js";
 
 const PRIMITIVES =
   "box[w,h,d], sphere[r], cylinder[rTop,rBottom,h], cone[r,h], capsule[r,length], torus[r,tube], tetrahedron[r]";

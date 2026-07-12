@@ -11,7 +11,7 @@ Pick one, attach `public/screenshot.png` (or better: a 15–30s screen recording
 > Type "create the Taj Mahal" → an AI builds it, part by part.
 >
 > Runs in your browser, free, no account:
-> https://project-orbit.vercel.app
+> https://project-orbit-ten.vercel.app
 >
 > Code (MIT): https://github.com/Tarachand-Gupta/project-orbit
 
@@ -25,7 +25,7 @@ Pick one, attach `public/screenshot.png` (or better: a 15–30s screen recording
 > • Drive/fly whatever you spawn
 > • Ships as a native macOS app too (Zig + WebView)
 >
-> Play: https://project-orbit.vercel.app/play
+> Play: https://project-orbit-ten.vercel.app/play
 > Source: https://github.com/Tarachand-Gupta/project-orbit — PRs welcome, good first issues up.
 
 ## Option C — short & mysterious
@@ -34,7 +34,7 @@ Pick one, attach `public/screenshot.png` (or better: a 15–30s screen recording
 >
 > …okay. Now press E.
 >
-> https://project-orbit.vercel.app
+> https://project-orbit-ten.vercel.app
 > (open source → https://github.com/Tarachand-Gupta/project-orbit)
 
 ## Thread follow-ups (reply to your own post)

@@ -17,3 +17,5 @@ orbit-native/frontend/dist
 # secrets
 .env
 .env.local
+.vercel
+.env*

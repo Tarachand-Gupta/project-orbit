@@ -7,9 +7,9 @@ and **summon physics objects by describing them**: "create a supercar", "create 
 
 ![Project Orbit gameplay](public/screenshot.png)
 
-**[▶ Play in your browser](https://project-orbit.vercel.app/play)** ·
+**[▶ Play in your browser](https://project-orbit-ten.vercel.app/play)** ·
 **[⬇ Download the native app](https://github.com/Tarachand-Gupta/project-orbit/releases/latest)** (macOS / Linux) ·
-**[Website](https://project-orbit.vercel.app)**
+**[Website](https://project-orbit-ten.vercel.app)**
 
 ## How it works
 

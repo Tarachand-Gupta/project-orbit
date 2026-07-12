@@ -7,7 +7,9 @@
  * Configure on Vercel: GEMINI_API_KEY (and optionally DIGITALOCEAN_API_KEY for Kimi/DeepSeek).
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { createGenerationMiddleware } from "../src/server/generationProxy";
+// The explicit .js extension is load-bearing: Vercel compiles this file to ESM, and Node's ESM
+// resolver rejects extensionless relative specifiers at runtime (FUNCTION_INVOCATION_FAILED).
+import { createGenerationMiddleware } from "../src/server/generationProxy.js";
 
 const middleware = createGenerationMiddleware({
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
