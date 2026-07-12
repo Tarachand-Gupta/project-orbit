@@ -10,7 +10,7 @@
  */
 
 import { toObjectSpec, type LlmSpec } from "./specSchema";
-import { SYSTEM, RAW_JSON_HINT, extractJson, coerceLlmSpec } from "./llmShared";
+import { SYSTEM, RAW_JSON_HINT, extractJson, coerceLlmSpec, sanitizeBaseUrl } from "./llmShared";
 import type { ObjectSpec } from "./spec";
 
 const GEMINI_MODEL = "gemini-3.5-flash";
@@ -76,6 +76,49 @@ export async function nativeGenerate(
 
   const text = (data.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
   if (!text) throw new Error("Gemini returned no content");
+  const llm: LlmSpec = coerceLlmSpec(extractJson(text));
+  return toObjectSpec(llm, id, prompt);
+}
+
+/**
+ * Direct client → OpenAI-compatible endpoint for the NATIVE app's "custom" provider (the
+ * packaged app has no proxy). Works with CORS-permissive endpoints (OpenRouter, Groq, most
+ * self-hosted gateways); endpoints that block browser origins will fail here and the local
+ * object spawns instead. Same SSRF-ish guard as the server (https-only, public hosts).
+ */
+export async function nativeCustomGenerate(
+  prompt: string,
+  id: string,
+  baseUrl: string,
+  model: string,
+  key: string,
+  signal: AbortSignal,
+): Promise<ObjectSpec> {
+  const safeBase = sanitizeBaseUrl(baseUrl);
+  if (!safeBase) throw new Error("custom base URL must be a public https endpoint");
+  if (!model) throw new Error("custom provider needs a model name");
+  if (!key) throw new Error("custom provider needs your API key");
+
+  const res = await fetch(`${safeBase}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    signal,
+    body: JSON.stringify({
+      model,
+      temperature: 0.6,
+      messages: [
+        { role: "system", content: SYSTEM + RAW_JSON_HINT },
+        { role: "user", content: prompt },
+      ],
+    }),
+  });
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+    error?: { message?: string };
+  };
+  if (!res.ok) throw new Error(data.error?.message ?? `custom endpoint HTTP ${res.status}`);
+  const text = data.choices?.[0]?.message?.content ?? "";
+  if (!text) throw new Error("custom endpoint returned no content");
   const llm: LlmSpec = coerceLlmSpec(extractJson(text));
   return toObjectSpec(llm, id, prompt);
 }

@@ -81,6 +81,13 @@ PRs welcome — start with [CONTRIBUTING.md](CONTRIBUTING.md). Branch model: `de
 target; `main` is the release branch (merges to `main` publish a GitHub release and deploy the
 site). Maintainer playbook: [MAINTAINING.md](MAINTAINING.md).
 
+## Roadmap
+
+- **[Iterate on existing objects](https://github.com/Tarachand-Gupta/project-orbit/issues/1)** —
+  select something you spawned and refine it with follow-up prompts ("make the wheels bigger").
+  Design sketch in the issue; help wanted.
+- WebGPU / physics-worker adoption criteria: see [docs/performance.md](docs/performance.md).
+
 ## Performance posture
 
 WebGL2 everywhere (the only GPU API that is stable on every OS/browser today), aggressive

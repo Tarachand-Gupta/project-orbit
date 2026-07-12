@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeJson, extractJson, coerceLlmSpec } from "./llmShared";
+import { closeJson, extractJson, coerceLlmSpec, sanitizeBaseUrl } from "./llmShared";
 
 describe("extractJson", () => {
   it("parses clean JSON", () => {
@@ -54,5 +54,25 @@ describe("coerceLlmSpec on recovered output", () => {
     expect(spec.label).toBe("Tank");
     expect(spec.parts.length).toBe(1);
     expect(spec.physics.mass).toBe(5000);
+  });
+});
+
+describe("sanitizeBaseUrl (custom provider guard)", () => {
+  it("accepts real https endpoints and strips trailing slashes", () => {
+    expect(sanitizeBaseUrl("https://api.openai.com/v1/")).toBe("https://api.openai.com/v1");
+    expect(sanitizeBaseUrl("https://openrouter.ai/api/v1")).toBe("https://openrouter.ai/api/v1");
+    expect(sanitizeBaseUrl("  https://api.groq.com/openai/v1  ")).toBe("https://api.groq.com/openai/v1");
+  });
+
+  it("rejects http, loopback, raw IPs, credentials, and garbage", () => {
+    expect(sanitizeBaseUrl("http://api.openai.com/v1")).toBeNull();
+    expect(sanitizeBaseUrl("https://localhost:11434/v1")).toBeNull();
+    expect(sanitizeBaseUrl("https://10.0.0.5/v1")).toBeNull();
+    expect(sanitizeBaseUrl("https://192.168.1.10/v1")).toBeNull();
+    expect(sanitizeBaseUrl("https://user:pass@api.example.com/v1")).toBeNull();
+    expect(sanitizeBaseUrl("https://ollama.local/v1")).toBeNull();
+    expect(sanitizeBaseUrl("not a url")).toBeNull();
+    expect(sanitizeBaseUrl("")).toBeNull();
+    expect(sanitizeBaseUrl(undefined)).toBeNull();
   });
 });

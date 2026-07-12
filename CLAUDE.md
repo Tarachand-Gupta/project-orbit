@@ -48,6 +48,10 @@ Providers (keys in `.env`, server-side only — never bundled):
 - **Gemini 3.5 Flash** (`gemini`) — `generateObject` + Zod schema, reliable. **Default.**
 - **DeepSeek v4 Pro** (`deepseek`) — `generateText` + tolerant parse.
 - **Kimi k2.6** (`kimi`) — slow (~45s); times out gracefully → local fallback.
+- **Custom** (`custom`) — any OpenAI-compatible endpoint the USER configures (base URL + model +
+  key in the ⚙ prompt settings, persisted in localStorage). Proxy validates the URL with
+  `sanitizeBaseUrl` (llmShared — https-only, public hosts); packaged native app calls the
+  endpoint directly (CORS-permitting).
 
 The proxy lives in `src/server/generationProxy.ts` and is mounted as **Vite dev middleware**
 (`POST /api/generate`) by `vite.config.ts` (loads `.env` via `loadEnv`, no `VITE_` prefix so keys
@@ -73,7 +77,8 @@ src/
                ObjectMesh / SpawnedObject / ObjectErrorBoundary / BurnController · bodyRegistry.ts
   state/       store.ts (objects, selection, glass, world, provider) · debugStore.ts · playerStore.ts
   hud/         Hud, PromptBox, ControlsPanel, ErrorIndicator, DebugWindow, DevPanel, Clock,
-               InteractionPrompt (drive/exit), ControlsHint
+               InteractionPrompt (drive/exit), ControlsHint, WelcomeGuide (first-launch onboarding,
+               localStorage "orbit.welcomed", reopenable via ? button; e2e boot() pre-seeds the flag)
   persistence/ db.ts — IndexedDB world save/load
   api/         gameApi.ts (window.game) · testHooks.ts (window.__orbitTest, DEV only)
   server/      generationProxy.ts — AI SDK generation (dev middleware)

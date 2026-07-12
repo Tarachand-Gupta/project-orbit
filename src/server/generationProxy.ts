@@ -21,9 +21,9 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 // .js extensions on relative imports are load-bearing for the Vercel function (api/generate.ts):
 // its compiled ESM output resolves specifiers verbatim at runtime. Vite/vitest map .js -> .ts.
 import { LlmSpecSchema, toObjectSpec, type LlmSpec } from "../objects/specSchema.js";
-import { SYSTEM, RAW_JSON_HINT, extractJson, coerceLlmSpec } from "../objects/llmShared.js";
+import { SYSTEM, RAW_JSON_HINT, extractJson, coerceLlmSpec, sanitizeBaseUrl } from "../objects/llmShared.js";
 
-export type Provider = "gemini" | "kimi" | "deepseek";
+export type Provider = "gemini" | "kimi" | "deepseek" | "custom";
 
 interface ProxyEnv {
   GEMINI_API_KEY?: string;
@@ -31,7 +31,7 @@ interface ProxyEnv {
 }
 
 const DO_BASE = "https://inference.do-ai.run/v1";
-const MODEL_IDS: Record<Provider, string> = {
+const MODEL_IDS: Record<Exclude<Provider, "custom">, string> = {
   gemini: "gemini-3.5-flash",
   kimi: "kimi-k2.6",
   deepseek: "deepseek-v4-pro",
@@ -72,16 +72,27 @@ async function generateGemini(prompt: string, key: string): Promise<LlmSpec> {
  * Generate with automatic self-correction: retry on timeout/parse/validation failure, feeding the
  * previous error back into the prompt so the model can fix it (PRD §4.7 — agent self-correction).
  */
+interface CustomEndpoint {
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}
+
 async function generateWithRetry(
   provider: Provider,
   prompt: string,
   env: ProxyEnv,
+  custom: CustomEndpoint | null,
   attempts = 2,
 ): Promise<LlmSpec> {
   let lastErr = "";
   for (let i = 0; i < attempts; i++) {
     const fixHint = i > 0 ? `\n\nYour previous attempt failed with: "${lastErr}". Return a COMPLETE, valid spec this time — fewer parts is fine if it helps you finish quickly.` : "";
     try {
+      if (provider === "custom") {
+        if (!custom) throw new Error("custom provider needs baseUrl, model, and your API key");
+        return await generateCustom(prompt + fixHint, custom.baseUrl, custom.model, custom.apiKey);
+      }
       if (provider === "gemini") {
         if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
         return await generateGemini(prompt + fixHint, env.GEMINI_API_KEY);
@@ -93,6 +104,23 @@ async function generateWithRetry(
     }
   }
   throw new Error(lastErr || "generation failed");
+}
+
+/**
+ * Provider "custom": any OpenAI-compatible endpoint the USER configures (OpenAI, OpenRouter,
+ * Groq, Together, ...). Always the user's own base URL + key — the server contributes nothing,
+ * it only keeps the request off the browser (CORS) and applies the sanitizeBaseUrl SSRF guard.
+ */
+async function generateCustom(prompt: string, baseUrl: string, model: string, key: string): Promise<LlmSpec> {
+  const provider = createOpenAICompatible({ name: "custom", baseURL: baseUrl, apiKey: key });
+  const { text } = await generateText({
+    model: provider(model),
+    system: `${SYSTEM}${RAW_JSON_HINT}`,
+    prompt,
+    temperature: 0.6,
+    abortSignal: timeoutSignal(GEN_TIMEOUT_MS),
+  });
+  return coerceLlmSpec(extractJson(text));
 }
 
 async function generateDigitalOcean(prompt: string, model: string, key: string): Promise<LlmSpec> {
@@ -123,13 +151,24 @@ export function createGenerationMiddleware(env: ProxyEnv) {
 
     try {
       const raw = await readBody(req);
-      const { prompt, provider = "gemini", id = "obj_llm", apiKey } = JSON.parse(raw || "{}") as {
+      const { prompt, provider = "gemini", id = "obj_llm", apiKey, baseUrl, model } = JSON.parse(raw || "{}") as {
         prompt?: string;
         provider?: Provider;
         id?: string;
         apiKey?: string;
+        baseUrl?: string;
+        model?: string;
       };
       if (!prompt || typeof prompt !== "string") return send(400, { error: "missing prompt" });
+
+      let custom: CustomEndpoint | null = null;
+      if (provider === "custom") {
+        const safeBase = sanitizeBaseUrl(baseUrl);
+        if (!safeBase) return send(400, { error: "custom base URL must be a public https endpoint" });
+        if (!model || typeof model !== "string") return send(400, { error: "custom provider needs a model name" });
+        if (!apiKey) return send(400, { error: "custom provider needs your API key" });
+        custom = { baseUrl: safeBase, model, apiKey };
+      }
 
       // A user-supplied key (bring-your-own-key) overrides the server's env keys.
       const effectiveEnv: ProxyEnv = apiKey
@@ -139,9 +178,9 @@ export function createGenerationMiddleware(env: ProxyEnv) {
         : env;
 
       const t0 = Date.now();
-      const llm = await generateWithRetry(provider, prompt, effectiveEnv);
+      const llm = await generateWithRetry(provider, prompt, effectiveEnv, custom);
       const spec = toObjectSpec(llm, id, prompt);
-      return send(200, { spec, provider, model: MODEL_IDS[provider], ms: Date.now() - t0 });
+      return send(200, { spec, provider, model: provider === "custom" ? model : MODEL_IDS[provider], ms: Date.now() - t0 });
     } catch (err) {
       return send(502, { error: (err as Error).message });
     }

@@ -9,9 +9,9 @@ import { validateSpec, type ObjectSpec } from "./spec";
 import { logError } from "@/state/debugStore";
 import { useGameStore } from "@/state/store";
 import { IS_NATIVE } from "@/config/native";
-import { nativeGenerate } from "./nativeLlm";
+import { nativeGenerate, nativeCustomGenerate } from "./nativeLlm";
 
-export type Provider = "local" | "gemini" | "kimi" | "deepseek";
+export type Provider = "local" | "gemini" | "kimi" | "deepseek" | "custom";
 
 // Generous — complex objects (helicopters, the Taj Mahal) can take a while, and the proxy retries
 // internally. Must exceed the server's own per-attempt timeout so the client doesn't bail early.
@@ -48,7 +48,16 @@ export async function enrichWithLLM(
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, provider, id, apiKey: userKey }),
+        body: JSON.stringify({
+          prompt,
+          provider,
+          id,
+          apiKey: userKey,
+          // Custom OpenAI-compatible endpoint: the user's base URL + model ride along so the
+          // proxy can route there (validated server-side; the key is always the user's own).
+          baseUrl: provider === "custom" ? useGameStore.getState().customBaseUrl : undefined,
+          model: provider === "custom" ? useGameStore.getState().customModel : undefined,
+        }),
         signal: controller.signal,
       });
       const data = (await res.json()) as ProxyResponse;
@@ -59,7 +68,12 @@ export async function enrichWithLLM(
       proxyError = (proxyErr as Error).message;
     }
     if (!raw && IS_NATIVE) {
-      raw = await nativeGenerate(prompt, id, provider, controller.signal, userKey);
+      // No proxy behind the packaged app — call the provider directly.
+      const st = useGameStore.getState();
+      raw =
+        provider === "custom"
+          ? await nativeCustomGenerate(prompt, id, st.customBaseUrl, st.customModel, userKey ?? "", controller.signal)
+          : await nativeGenerate(prompt, id, provider, controller.signal, userKey);
     } else if (!raw) {
       logError({
         objectId: id,

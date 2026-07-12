@@ -59,7 +59,9 @@ function refresh(): void {
 }
 
 function needsRealCursor(s: ReturnType<typeof useGameStore.getState>): boolean {
-  return s.promptOpen || s.explorerOpen || s.clockOpen || s.debugWindowOpen || s.devPanelOpen || s.selectedId !== null;
+  return (
+    s.promptOpen || s.explorerOpen || s.clockOpen || s.debugWindowOpen || s.devPanelOpen || s.welcomeOpen || s.selectedId !== null
+  );
 }
 
 function isTyping(): boolean {

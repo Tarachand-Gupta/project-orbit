@@ -12,6 +12,7 @@ const PROVIDERS: Array<{ id: Provider; label: string; needsKey: boolean }> = [
   { id: "gemini", label: "Gemini 3.5 Flash", needsKey: true },
   { id: "kimi", label: "Kimi k2.6", needsKey: true },
   { id: "deepseek", label: "DeepSeek v4 Pro", needsKey: true },
+  { id: "custom", label: "Custom (OpenAI-compatible)", needsKey: true },
 ];
 
 function titleCaseKeyword(s: string): string {
@@ -24,6 +25,9 @@ function PromptSettings({ onClose }: { onClose: () => void }) {
   const setProvider = useGameStore((s) => s.setProvider);
   const apiKeys = useGameStore((s) => s.apiKeys);
   const setApiKey = useGameStore((s) => s.setApiKey);
+  const customBaseUrl = useGameStore((s) => s.customBaseUrl);
+  const customModel = useGameStore((s) => s.customModel);
+  const setCustomEndpoint = useGameStore((s) => s.setCustomEndpoint);
   const needsKey = PROVIDERS.find((p) => p.id === provider)?.needsKey;
 
   return (
@@ -44,18 +48,40 @@ function PromptSettings({ onClose }: { onClose: () => void }) {
           </button>
         ))}
       </div>
+      {provider === "custom" && (
+        <div className="space-y-1.5 mb-1.5">
+          <input
+            type="url"
+            value={customBaseUrl}
+            onChange={(e) => setCustomEndpoint({ baseUrl: e.target.value })}
+            placeholder="Base URL, e.g. https://openrouter.ai/api/v1"
+            className="w-full glass rounded-lg px-2.5 py-1.5 text-xs bg-black/20 outline-none placeholder-white/40"
+            data-testid="prompt-custom-baseurl"
+          />
+          <input
+            type="text"
+            value={customModel}
+            onChange={(e) => setCustomEndpoint({ model: e.target.value })}
+            placeholder="Model, e.g. anthropic/claude-sonnet-5"
+            className="w-full glass rounded-lg px-2.5 py-1.5 text-xs bg-black/20 outline-none placeholder-white/40"
+            data-testid="prompt-custom-model"
+          />
+        </div>
+      )}
       {needsKey && (
         <div>
           <input
             type="password"
             value={apiKeys[provider] ?? ""}
             onChange={(e) => setApiKey(provider, e.target.value)}
-            placeholder={`${provider} API key (optional — overrides server)`}
+            placeholder={provider === "custom" ? "API key (required)" : `${provider} API key (optional — overrides server)`}
             className="w-full glass rounded-lg px-2.5 py-1.5 text-xs bg-black/20 outline-none placeholder-white/40"
             data-testid="prompt-apikey"
           />
           <div className="text-[10px] text-white/40 mt-1">
-            Stored only in your browser. Leave blank to use the app's key (dev).
+            {provider === "custom"
+              ? "Any OpenAI-compatible endpoint (OpenAI, OpenRouter, Groq, Together…). Key stays in your browser."
+              : "Stored only in your browser. Leave blank to use the app's key (dev)."}
           </div>
         </div>
       )}

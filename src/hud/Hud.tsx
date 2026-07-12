@@ -12,6 +12,7 @@ import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { PerfStats } from "./PerfStats";
 import { Screenshot } from "./Screenshot";
 import { NativeBadge } from "./NativeBadge";
+import { WelcomeGuide, HelpButton } from "./WelcomeGuide";
 
 /**
  * Glass-morphism HUD layer (Tech Doc §8). Regions: top-left dev/scale settings, top-center
@@ -36,13 +37,17 @@ export function Hud() {
         <Clock />
       </div>
 
-      {/* top-right: generation spinner + object explorer + error indicator */}
+      {/* top-right: generation spinner + object explorer + error indicator + guide */}
       <div className="absolute top-6 right-6 flex items-start gap-2">
         <GenerationIndicator />
         <ObjectExplorer />
         <ErrorIndicator />
+        <HelpButton />
       </div>
       <DebugWindow />
+
+      {/* first-launch guide (once per browser; reopenable from ?) */}
+      <WelcomeGuide />
 
       {/* bottom-right: object controls */}
       <ControlsPanel />

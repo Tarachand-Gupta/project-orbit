@@ -28,6 +28,9 @@ function trackConsole(page: Page): string[] {
 }
 
 async function boot(page: Page) {
+  // Every e2e page is a "first launch" — pre-mark the welcome guide as seen so it doesn't
+  // overlay the HUD (the guide has its own dedicated test below).
+  await page.addInitScript(() => localStorage.setItem("orbit.welcomed", "1"));
   await page.goto("/play"); // "/" is the public landing page; the game lives at /play
   await page.waitForSelector("canvas", { timeout: 30_000 });
   await page.waitForFunction(() => document.body.getAttribute("data-scene-ready") === "true", { timeout: 30_000 });
@@ -65,6 +68,28 @@ test.describe("Project Orbit — walkable world", () => {
     expect(feetY - groundY, `player feet ${(feetY - groundY).toFixed(2)} above ground`).toBeLessThan(6);
 
     expect(errors, `console errors:\n${errors.join("\n")}`).toEqual([]);
+  });
+
+  test("first launch shows the welcome guide once; ? reopens it", async ({ page }) => {
+    // Fresh browser context, NO pre-seeded flag: the guide must greet the first visit.
+    await page.goto("/play");
+    await expect(page.getByTestId("welcome-guide")).toBeVisible({ timeout: 30_000 });
+
+    // Page through to the end and start playing.
+    while (await page.getByTestId("welcome-next").isVisible()) {
+      await page.getByTestId("welcome-next").click();
+    }
+    await page.getByTestId("welcome-start").click();
+    await expect(page.getByTestId("welcome-guide")).not.toBeVisible();
+
+    // Second launch: no greeting.
+    await page.reload();
+    await page.waitForSelector("canvas", { timeout: 30_000 });
+    await expect(page.getByTestId("welcome-guide")).not.toBeVisible();
+
+    // But the ? button brings the guide back on demand.
+    await page.getByTestId("help-button").click();
+    await expect(page.getByTestId("welcome-guide")).toBeVisible();
   });
 
   test("spawns an object via the prompt box", async ({ page }) => {

@@ -64,6 +64,35 @@ Give vehicles a topSpeed + acceleration + handling control; aircraft a topSpeed 
 /** Suffix for providers WITHOUT native structured output — demand raw JSON in the exact shape. */
 export const RAW_JSON_HINT = `\n\nRespond with ONLY raw JSON matching this shape: { type, label, parts:[{primitive,size,position?,rotation?,material}], physics:{mass,friction,restitution,flammable,fire?,fixed?}, config:[{key,type,label,tab,min,max,step,value}] }. No markdown, no prose.`;
 
+/**
+ * Validate a user-supplied OpenAI-compatible base URL (provider "custom"). Returns the
+ * normalized origin+path (no trailing slash) or null when unusable. https-only and no
+ * loopback/private hosts — the server proxy forwards requests here, so this is also the
+ * SSRF guard. Tested.
+ */
+export function sanitizeBaseUrl(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:") return null;
+  const host = url.hostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    /^\d+\.\d+\.\d+\.\d+$/.test(host) || // raw IPv4 (incl. 10/172/192 private ranges)
+    host.startsWith("[") // IPv6 literal
+  ) {
+    return null;
+  }
+  if (url.username || url.password) return null;
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
+}
+
 export function repairJson(s: string): string {
   return s
     .replace(/```(?:json)?/gi, "")

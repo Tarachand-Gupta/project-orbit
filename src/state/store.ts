@@ -35,12 +35,17 @@ export interface GameState {
   provider: Provider;
   /** User-supplied API keys (bring-your-own-key for publishing) — sent to the proxy to override env. */
   apiKeys: Partial<Record<Provider, string>>;
+  /** Custom OpenAI-compatible endpoint (provider "custom"): base URL + model name. */
+  customBaseUrl: string;
+  customModel: string;
   /** When true, trees/rocks are solid (you collide with them). Off = walk/drive through them. */
   solidObstacles: boolean;
   /** When true, ground vehicles use real raycast-vehicle physics (suspension, momentum, collisions). */
   realisticVehicles: boolean;
   devPanelOpen: boolean;
   debugWindowOpen: boolean;
+  /** First-launch guide (WelcomeGuide) — starts open until localStorage says it was seen. */
+  welcomeOpen: boolean;
   promptOpen: boolean;
   explorerOpen: boolean;
   clockOpen: boolean;
@@ -59,12 +64,14 @@ export interface GameState {
   replaceSpec: (id: string, spec: ObjectSpec) => void;
   setProvider: (provider: Provider) => void;
   setApiKey: (provider: Provider, key: string) => void;
+  setCustomEndpoint: (patch: { baseUrl?: string; model?: string }) => void;
   setSolidObstacles: (solid: boolean) => void;
   setRealisticVehicles: (on: boolean) => void;
 
   setGlass: (patch: Partial<GlassConfig>) => void;
   setWorld: (patch: Partial<WorldConfig>) => void;
   toggleDevPanel: (open?: boolean) => void;
+  toggleWelcome: (open?: boolean) => void;
   toggleDebugWindow: (open?: boolean) => void;
   togglePrompt: (open?: boolean) => void;
   toggleExplorer: (open?: boolean) => void;
@@ -75,6 +82,24 @@ export interface GameState {
   hydrate: (objects: SpawnedObject[]) => void;
 }
 
+/** True when the first-launch guide should open (never been dismissed in this browser). */
+function loadWelcomePending(): boolean {
+  try {
+    return localStorage.getItem("orbit.welcomed") !== "1";
+  } catch {
+    return false; // storage unavailable — don't nag on every load
+  }
+}
+
+function loadCustomEndpoint(): { customBaseUrl: string; customModel: string } {
+  try {
+    const raw = JSON.parse(localStorage.getItem("orbit.customEndpoint") || "{}");
+    return { customBaseUrl: raw.customBaseUrl || "", customModel: raw.customModel || "" };
+  } catch {
+    return { customBaseUrl: "", customModel: "" };
+  }
+}
+
 export const useGameStore = create<GameState>((set) => ({
   objects: {},
   order: [],
@@ -83,6 +108,7 @@ export const useGameStore = create<GameState>((set) => ({
   world: { ...DEFAULT_WORLD },
   provider: loadProvider(),
   apiKeys: loadApiKeys(),
+  ...loadCustomEndpoint(),
   solidObstacles: true,
   // Default OFF: the stable kinematic arcade controller (smooth accel, always upright, terrain-
   // following, launches off cliffs) is the good default. The raycast path stays an opt-in for
@@ -90,6 +116,7 @@ export const useGameStore = create<GameState>((set) => ({
   realisticVehicles: false,
   devPanelOpen: false,
   debugWindowOpen: false,
+  welcomeOpen: loadWelcomePending(),
   promptOpen: false,
   explorerOpen: false,
   clockOpen: false,
@@ -188,12 +215,24 @@ export const useGameStore = create<GameState>((set) => ({
       }
       return { apiKeys };
     }),
+  setCustomEndpoint: (patch) =>
+    set((state) => {
+      const customBaseUrl = patch.baseUrl ?? state.customBaseUrl;
+      const customModel = patch.model ?? state.customModel;
+      try {
+        localStorage.setItem("orbit.customEndpoint", JSON.stringify({ customBaseUrl, customModel }));
+      } catch {
+        /* ignore */
+      }
+      return { customBaseUrl, customModel };
+    }),
   setSolidObstacles: (solid) => set({ solidObstacles: solid }),
   setRealisticVehicles: (on) => set({ realisticVehicles: on }),
 
   setGlass: (patch) => set((state) => ({ glass: { ...state.glass, ...patch } })),
   setWorld: (patch) => set((state) => ({ world: { ...state.world, ...patch } })),
   toggleDevPanel: (open) => set((state) => ({ devPanelOpen: open ?? !state.devPanelOpen })),
+  toggleWelcome: (open) => set((state) => ({ welcomeOpen: open ?? !state.welcomeOpen })),
   toggleDebugWindow: (open) => set((state) => ({ debugWindowOpen: open ?? !state.debugWindowOpen })),
   togglePrompt: (open) => set((state) => ({ promptOpen: open ?? !state.promptOpen })),
   toggleExplorer: (open) => set((state) => ({ explorerOpen: open ?? !state.explorerOpen })),
