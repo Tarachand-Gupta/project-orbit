@@ -87,6 +87,59 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 
+/* ---- Landing page (src/site/Landing.tsx) ---- */
+.landing {
+  background: #0c1410; /* jungle dark */
+}
+.landing-sky {
+  position: absolute;
+  inset: 0;
+  height: 130vh;
+  background:
+    linear-gradient(180deg, rgba(12, 20, 16, 0) 55%, #0c1410 92%),
+    /* low-poly ridge line, cut from the page background color */
+    linear-gradient(115deg, transparent 0, transparent 100%),
+    radial-gradient(120% 90% at 50% -10%, #7cb8e8 0%, #4e86b8 34%, #2b4a63 58%, #16261f 82%, #0c1410 100%);
+  clip-path: none;
+  pointer-events: none;
+}
+.landing-sky::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 34vh;
+  height: 40vh;
+  background: linear-gradient(180deg, rgba(23, 42, 30, 0.85), rgba(12, 20, 16, 0));
+  clip-path: polygon(0 38%, 9% 26%, 18% 34%, 29% 18%, 41% 31%, 52% 18%, 63% 30%, 74% 18%, 85% 30%, 100% 22%, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+.landing-wordmark {
+  font-family: "Silkscreen", "Courier New", monospace;
+  letter-spacing: 0.06em;
+}
+.landing-display {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.landing-caret {
+  display: inline-block;
+  width: 9px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #7dd3fc;
+  animation: landing-blink 1.05s steps(1) infinite;
+}
+@keyframes landing-blink {
+  50% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-caret { animation: none; }
+  .landing .transition-transform { transition: none; }
+}
+
 /* Native shell mouse capture (src/player/mouseCapture.ts): while hover-look is engaged the OS
    cursor sits recentered mid-window — hide it everywhere, like real pointer lock would. */
 :root[data-mouse-capture],

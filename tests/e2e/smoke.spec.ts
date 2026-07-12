@@ -28,7 +28,7 @@ function trackConsole(page: Page): string[] {
 }
 
 async function boot(page: Page) {
-  await page.goto("/");
+  await page.goto("/play"); // "/" is the public landing page; the game lives at /play
   await page.waitForSelector("canvas", { timeout: 30_000 });
   await page.waitForFunction(() => document.body.getAttribute("data-scene-ready") === "true", { timeout: 30_000 });
   // Deterministic, fast & free: local generator + fixed daytime. Reset transient control state so
