@@ -49,11 +49,16 @@ Bump `version` in `package.json` on `dev` when you want the release tag to advan
 
 ## Secrets & keys (important)
 
+**Policy: production is bring-your-own-key, always.** No server key is ever configured — not
+on Vercel, not in CI, not in release artifacts. Players paste their own key in the ⚙ settings;
+the proxy only relays it per-request. An open-source project's own key in a public deployment
+would be drained within hours.
+
 | Where | What | Notes |
 | --- | --- | --- |
-| local `.env` | `GEMINI_API_KEY`, `DIGITALOCEAN_API_KEY` | gitignored; used by dev middleware and **baked into locally-packaged .apps** — never distribute a locally-built .app |
-| Vercel env | `GEMINI_API_KEY` (+ `DIGITALOCEAN_API_KEY`) | powers `/api/generate` in production; set via `vercel env add` or dashboard |
-| GitHub Actions | none required | CI has **no** keys on purpose: release builds ship key-less apps (users bring their own key in the ⚙ settings) — a bundled key in a public artifact would be leaked instantly |
+| local `.env` | `GEMINI_API_KEY`, `DIGITALOCEAN_API_KEY` | gitignored; dev-middleware convenience only, and **baked into locally-packaged .apps** — never distribute a locally-built .app |
+| Vercel env | **nothing, by policy** | `/api/generate` returns "add your own key in the ⚙ settings" when a request arrives without one |
+| GitHub Actions | none | release builds ship key-less apps for the same reason |
 
 ## When CI fails on main
 

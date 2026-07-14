@@ -264,11 +264,14 @@ export const useGameStore = create<GameState>((set) => ({
 function loadProvider(): Provider {
   try {
     const p = localStorage.getItem("orbit.provider");
-    if (p === "gemini" || p === "kimi" || p === "deepseek" || p === "local") return p;
+    if (p === "gemini" || p === "kimi" || p === "deepseek" || p === "custom" || p === "local") return p;
   } catch {
     /* ignore */
   }
-  return "gemini";
+  // Local is the default on purpose: this open-source deployment ships NO server keys, so AI
+  // providers are always bring-your-own-key — players opt in via the ⚙ settings (the welcome
+  // guide walks them through it). Templates make the zero-config experience instant, not broken.
+  return "local";
 }
 
 function loadApiKeys(): Partial<Record<Provider, string>> {

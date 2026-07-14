@@ -34,18 +34,23 @@ npm run dev            # http://localhost:5191  (game at /play, landing page at 
 **Controls:** WASD / arrows walk · mouse look (click to lock, Esc frees) · Shift run · Space jump ·
 **C** create · **E** enter/exit vehicles · **F** fire · **Z/X** kick/punch · **O/T/L** panels.
 
-### AI generation (optional)
+### AI generation (optional, bring-your-own-key)
 
-Put keys in `.env` (gitignored):
+The game defaults to the offline template engine and never needs a key. To let a model build
+things, players open the **⚙ gear on the Create bar**, pick a provider (Gemini built-in, or any
+OpenAI-compatible endpoint via **Custom** — OpenAI, OpenRouter, Groq, DeepSeek…), and paste
+**their own API key**. Keys live only in the player's browser and are sent only to the chosen
+provider (the serverless proxy in [`api/generate.ts`](api/generate.ts) relays them per-request;
+the deployment stores nothing). **The public deployment ships no server keys, by policy** — an
+open-source project's key would be drained within hours.
+
+For local development you *may* put keys in `.env` (gitignored) so the Vite dev middleware uses
+them without pasting into the UI:
 
 ```
-GEMINI_API_KEY=...           # Gemini 3.5 Flash (default provider)
-DIGITALOCEAN_API_KEY=...     # serves Kimi k2.6 & DeepSeek v4 Pro
+GEMINI_API_KEY=...           # dev convenience only — never deployed
+DIGITALOCEAN_API_KEY=...     # dev: serves the built-in Kimi/DeepSeek routes
 ```
-
-Keys stay **server-side**: the Vite dev middleware (and, in production, the Vercel function in
-[`api/generate.ts`](api/generate.ts)) proxies generation. You can also bring your own key at
-runtime from the ⚙ gear on the Create bar — it's stored only in your browser.
 
 ## Scripts
 

@@ -146,9 +146,10 @@ const PAGES: Array<{ title: string; body: React.ReactNode }> = [
     body: (
       <div className="space-y-3">
         <p>
-          The game is fully playable offline. To let a model build anything you can imagine, open
-          the <b>⚙ gear on the Create bar</b>, pick a provider, and paste an API key — it's
-          stored only in your browser.
+          The game is fully playable without any of this. To let a model build anything you can
+          imagine, open the <b>⚙ gear on the Create bar</b>, pick a provider, and paste{" "}
+          <b>your own API key</b> — it's stored only in your browser and sent only to the provider
+          you chose. This project never ships keys of its own.
         </p>
         <table className="w-full text-xs">
           <thead>
@@ -161,11 +162,11 @@ const PAGES: Array<{ title: string; body: React.ReactNode }> = [
           <tbody className="text-white/80">
             {(
               [
-                ["Google Gemini", "built-in", "the default — fast, reliable structured output"],
-                ["DeepSeek v4 Pro", "built-in", "great geometry, slower"],
-                ["Moonshot Kimi k2.6", "built-in", "creative, slowest (~45 s)"],
-                ["OpenAI", "custom · https://api.openai.com/v1", "use any GPT model"],
-                ["OpenRouter", "custom · https://openrouter.ai/api/v1", "one key, hundreds of models"],
+                ["Google Gemini", "pick Gemini · key: aistudio.google.com", "free tier — the recommended start"],
+                ["OpenAI", "Custom · api.openai.com/v1", "any GPT model"],
+                ["OpenRouter", "Custom · openrouter.ai/api/v1", "one key, hundreds of models"],
+                ["DeepSeek", "Custom · api.deepseek.com/v1", "great geometry, cheap"],
+                ["Groq", "Custom · api.groq.com/openai/v1", "very fast open models"],
               ] as Array<[string, string, string]>
             ).map(([p, how, note]) => (
               <tr key={p} className="border-t border-white/10">

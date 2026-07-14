@@ -44,8 +44,10 @@ spec swap read as a duplicated object and could rebuild the physics body under t
 `store.replaceSpec` still exists but nothing in the spawn path calls it. Clearing the world
 cancels in-flight generations (`pendingGen` doubles as the cancellation token).
 
-Providers (keys in `.env`, server-side only — never bundled):
-- **Gemini 3.5 Flash** (`gemini`) — `generateObject` + Zod schema, reliable. **Default.**
+Providers (production is **bring-your-own-key only** — the deployment ships no server keys, by
+policy; `.env` keys are a local-dev convenience, server-side only, never bundled):
+- **Gemini 3.5 Flash** (`gemini`) — `generateObject` + Zod schema, reliable. Recommended first pick
+  (the DEFAULT provider is `local` — zero-config players get instant templates, never a failed call).
 - **DeepSeek v4 Pro** (`deepseek`) — `generateText` + tolerant parse.
 - **Kimi k2.6** (`kimi`) — slow (~45s); times out gracefully → local fallback.
 - **Custom** (`custom`) — any OpenAI-compatible endpoint the USER configures (base URL + model +

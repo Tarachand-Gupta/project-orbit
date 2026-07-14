@@ -1,7 +1,9 @@
 /**
  * Server-side generation proxy (Tech Doc §9) built on the Vercel AI SDK.
  *
- * Holds the API keys (never shipped to the browser) and turns a prompt into a constrained
+ * In production this is ALWAYS bring-your-own-key: the deployment ships no server keys (an
+ * open-source project's key in a public deployment would be drained within hours). Env keys
+ * exist only for local dev convenience (.env). Holds keys server-side and turns a prompt into a constrained
  * Object Spec:
  *   - Gemini → `generateObject` with a Zod schema (native structured output, very reliable).
  *   - DigitalOcean (Kimi/DeepSeek, OpenAI-compatible) → `generateText` + tolerant JSON parse,
@@ -94,10 +96,10 @@ async function generateWithRetry(
         return await generateCustom(prompt + fixHint, custom.baseUrl, custom.model, custom.apiKey);
       }
       if (provider === "gemini") {
-        if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+        if (!env.GEMINI_API_KEY) throw new Error("no Gemini key — add your own in the \u2699 settings on the Create bar (it stays in your browser)");
         return await generateGemini(prompt + fixHint, env.GEMINI_API_KEY);
       }
-      if (!env.DIGITALOCEAN_API_KEY) throw new Error("DIGITALOCEAN_API_KEY not configured");
+      if (!env.DIGITALOCEAN_API_KEY) throw new Error("no API key for this provider — add your own in the \u2699 settings on the Create bar (it stays in your browser)");
       return await generateDigitalOcean(prompt + fixHint, MODEL_IDS[provider], env.DIGITALOCEAN_API_KEY);
     } catch (err) {
       lastErr = (err as Error).name === "AbortError" || /abort/i.test((err as Error).message) ? "timeout" : (err as Error).message;

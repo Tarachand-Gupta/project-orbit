@@ -74,14 +74,16 @@ function PromptSettings({ onClose }: { onClose: () => void }) {
             type="password"
             value={apiKeys[provider] ?? ""}
             onChange={(e) => setApiKey(provider, e.target.value)}
-            placeholder={provider === "custom" ? "API key (required)" : `${provider} API key (optional — overrides server)`}
+            placeholder={`${provider === "custom" ? "" : `${provider} `}API key (required)`}
             className="w-full glass rounded-lg px-2.5 py-1.5 text-xs bg-black/20 outline-none placeholder-white/40"
             data-testid="prompt-apikey"
           />
           <div className="text-[10px] text-white/40 mt-1">
             {provider === "custom"
-              ? "Any OpenAI-compatible endpoint (OpenAI, OpenRouter, Groq, Together…). Key stays in your browser."
-              : "Stored only in your browser. Leave blank to use the app's key (dev)."}
+              ? "Any OpenAI-compatible endpoint (OpenAI, OpenRouter, Groq, DeepSeek, Together…). Key stays in your browser."
+              : provider === "kimi" || provider === "deepseek"
+                ? "Routes via DigitalOcean inference — use a DO key, or use Custom with the provider's own endpoint."
+                : "Your own key — it stays in your browser; this project never ships server keys."}
           </div>
         </div>
       )}
