@@ -1,0 +1,115 @@
+# Merging to main publishes a GitHub Release with the native desktop builds.
+# The website's download buttons link to releases/latest/download/<asset>, so stable asset
+# names below are load-bearing: Project-Orbit-macOS.zip, Project-Orbit-linux-x64.tar.gz.
+#
+# Release builds are intentionally KEY-LESS (no .env in CI): a Gemini key baked into a public
+# artifact would be leaked. Users add their own key from the in-game settings (⚙ on the
+# Create bar); everything else works offline.
+name: release
+
+on:
+  push:
+    branches: [main]
+
+# Least privilege by default; only the publish job that creates the Release gets write.
+permissions:
+  contents: read
+
+env:
+  NATIVE_SDK_VERSION: "0.4.0"
+  ZIG_VERSION: "0.16.0"
+
+jobs:
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - run: npm ci
+      - run: npm install -g @native-sdk/cli@${{ env.NATIVE_SDK_VERSION }}
+      - name: Package the macOS app
+        working-directory: orbit-native
+        run: |
+          npm --prefix frontend ci
+          zig build package -Doptimize=ReleaseFast \
+            -Dnative-sdk-path="$(npm root -g)/@native-sdk/cli"
+      - name: Zip the .app
+        run: |
+          APP=$(ls -d orbit-native/zig-out/package/*.app | head -1)
+          ditto -c -k --keepParent "$APP" Project-Orbit-macOS.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: Project-Orbit-macOS.zip
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    # Linux packaging is newer than the macOS path — don't hold a release hostage to it.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - name: System WebView toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+      - run: npm ci
+      - run: npm install -g @native-sdk/cli@${{ env.NATIVE_SDK_VERSION }}
+      - name: Package the Linux app
+        working-directory: orbit-native
+        run: |
+          npm --prefix frontend ci
+          zig build package -Doptimize=ReleaseFast -Dpackage-target=linux \
+            -Dnative-sdk-path="$(npm root -g)/@native-sdk/cli"
+      - name: Tar the build
+        run: |
+          OUT=$(ls -d orbit-native/zig-out/package/* | head -1)
+          tar -C "$(dirname "$OUT")" -czf Project-Orbit-linux-x64.tar.gz "$(basename "$OUT")"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: Project-Orbit-linux-x64.tar.gz
+
+  publish:
+    needs: [macos, linux]
+    if: always() && needs.macos.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release + upload assets
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read version
+        id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: v${{ steps.v.outputs.version }}-build.${{ github.run_number }}
+          name: Project Orbit v${{ steps.v.outputs.version }} (build ${{ github.run_number }})
+          generate_release_notes: true
+          files: |
+            Project-Orbit-macOS.zip
+            Project-Orbit-linux-x64.tar.gz
+          fail_on_unmatched_files: false
+          body: |
+            Native desktop builds of Project Orbit. The apps are unsigned — on macOS,
+            right-click → Open the first time. AI generation is bring-your-own-key
+            (⚙ on the Create bar); everything else works offline.
+
+            Play instantly in the browser: https://projectorbitai.vercel.app/play

@@ -1,0 +1,22 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+playwright-report
+test-results
+.vite
+coverage
+tsconfig.tsbuildinfo
+
+# native-sdk (orbit-native) build artifacts
+orbit-native/zig-out
+orbit-native/.zig-cache
+orbit-native/frontend/dist
+
+# secrets
+.env
+.env.local
+.vercel
+.env*
+!.env.example

@@ -1,0 +1,45 @@
+.{
+    .id = "dev.orbit.project-orbit",
+    .name = "orbit-native",
+    .display_name = "Project Orbit AI",
+    .description = "AI-driven low-poly sandbox — walk and drive a hand-crafted world, spawn anything you type.",
+    .version = "0.1.0",
+    .icons = .{ "assets/icon.png" },
+    .platforms = .{ "macos", "linux" },
+    .permissions = .{},
+    .capabilities = .{ "webview", "js_bridge" },
+    // Mirrors the dispatcher policy in src/main.zig (the manifest does not auto-propagate):
+    // orbit.warpMouse teleports the OS cursor back to window center for the game's hover
+    // mouse-look (pointer-lock emulation — WKWebView never grants the real API).
+    .bridge = .{
+        .commands = .{
+            .{ .name = "orbit.warpMouse", .origins = .{ "zero://app", "http://127.0.0.1:5191", "zero://inline" } },
+        },
+    },
+    .frontend = .{
+        // In production the WebView loads the game's built assets copied into frontend/dist
+        // (see frontend/package.json — it delegates the real build to the root Orbit game).
+        .dist = "frontend/dist",
+        .entry = "index.html",
+        .spa_fallback = true,
+        .dev = .{
+            // Development loads the root game's Vite dev server (pinned to 5191, strictPort).
+            // ?native=1 flips the game into its refined, non-pixelated native rendering path.
+            .url = "http://127.0.0.1:5191/?native=1",
+            .command = .{ "npm", "run", "dev", "--prefix", ".." },
+            .ready_path = "/",
+            .timeout_ms = 60000,
+        },
+    },
+    .security = .{
+        .navigation = .{
+            .allowed_origins = .{ "zero://app", "zero://inline", "http://127.0.0.1:5191" },
+            .external_links = .{ .action = "deny" },
+        },
+    },
+    .web_engine = "system",
+    .cef = .{ .dir = "third_party/cef/macos", .auto_install = false },
+    .windows = .{
+        .{ .label = "main", .title = "Project Orbit", .width = 1280, .height = 800, .restore_state = true },
+    },
+}

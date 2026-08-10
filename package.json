@@ -1,0 +1,53 @@
+{
+  "name": "project-orbit-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AI-Driven Planet Sandbox Game — browser-based low-poly 3D world with prompt-driven object generation.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:all": "vitest run && playwright test"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.97",
+    "@ai-sdk/google": "^3.0.83",
+    "@ai-sdk/openai-compatible": "^2.0.51",
+    "@react-three/drei": "^9.114.0",
+    "@react-three/fiber": "^8.17.10",
+    "@react-three/postprocessing": "^2.19.1",
+    "@react-three/rapier": "^1.5.0",
+    "ai": "^6.0.209",
+    "idb": "^8.0.0",
+    "lucide-react": "^1.22.0",
+    "postprocessing": "^6.39.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "simplex-noise": "^4.0.3",
+    "three": "^0.169.0",
+    "zod": "^4.4.3",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vite-plugin-top-level-await": "^1.4.4",
+    "vite-plugin-wasm": "^3.3.0",
+    "vitest": "^2.1.4"
+  }
+}

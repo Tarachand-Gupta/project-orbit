@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Glass-morphism design tokens (Tech Doc §8) — tuned live by the dev panel, locked at deploy. */
+  --glass-blur: 18px;
+  --glass-opacity: 0.18;
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --glass-fill: 255, 255, 255;
+  --hud-text: #f4f7fb;
+  --hud-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  /* Subtle legibility shadow (iOS-style) so HUD text stays readable over a bright daytime sky,
+     where the translucent glass fill alone gives white text too little contrast. */
+  --hud-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: #050a14;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+  color: var(--hud-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The HUD layer floats above the canvas; only its interactive children receive pointer events. */
+.hud-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+.hud-layer > * {
+  pointer-events: auto;
+}
+
+/* Reusable frosted-glass surface. Uses both standard and -webkit- prefixed backdrop-filter. */
+.glass {
+  background: rgba(var(--glass-fill), var(--glass-opacity));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--hud-shadow);
+  border-radius: 18px;
+  color: var(--hud-text);
+  text-shadow: var(--hud-text-shadow);
+}
+
+.glass-strong {
+  background: rgba(var(--glass-fill), calc(var(--glass-opacity) + 0.12));
+}
+
+/* Subtle interactive hover for glass buttons */
+.glass-btn {
+  transition: transform 0.12s ease, background 0.2s ease;
+}
+.glass-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(var(--glass-fill), calc(var(--glass-opacity) + 0.1));
+}
+.glass-btn:active {
+  transform: translateY(0);
+}
+
+/* Range input styled for glass HUD */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+/* ---- Landing page (src/site/Landing.tsx) ---- */
+.landing {
+  background: #0c1410; /* jungle dark */
+}
+.landing-sky {
+  position: absolute;
+  inset: 0;
+  height: 130vh;
+  background:
+    linear-gradient(180deg, rgba(12, 20, 16, 0) 55%, #0c1410 92%),
+    /* low-poly ridge line, cut from the page background color */
+    linear-gradient(115deg, transparent 0, transparent 100%),
+    radial-gradient(120% 90% at 50% -10%, #7cb8e8 0%, #4e86b8 34%, #2b4a63 58%, #16261f 82%, #0c1410 100%);
+  clip-path: none;
+  pointer-events: none;
+}
+.landing-sky::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 34vh;
+  height: 40vh;
+  background: linear-gradient(180deg, rgba(23, 42, 30, 0.85), rgba(12, 20, 16, 0));
+  clip-path: polygon(0 38%, 9% 26%, 18% 34%, 29% 18%, 41% 31%, 52% 18%, 63% 30%, 74% 18%, 85% 30%, 100% 22%, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+.landing-wordmark {
+  font-family: "Silkscreen", "Courier New", monospace;
+  letter-spacing: 0.06em;
+}
+.landing-display {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.landing-caret {
+  display: inline-block;
+  width: 9px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #7dd3fc;
+  animation: landing-blink 1.05s steps(1) infinite;
+}
+@keyframes landing-blink {
+  50% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-caret { animation: none; }
+  .landing .transition-transform { transition: none; }
+}
+
+/* Native shell mouse capture (src/player/mouseCapture.ts): while hover-look is engaged the OS
+   cursor sits recentered mid-window — hide it everywhere, like real pointer lock would. */
+:root[data-mouse-capture],
+:root[data-mouse-capture] * {
+  cursor: none !important;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #7dd3fc;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(255, 90, 80, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 90, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 90, 80, 0); }
+}
+.error-pulse {
+  animation: pulse-ring 1.8s infinite;
+}
